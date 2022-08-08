@@ -1,0 +1,11 @@
+-1. KKT FBNE. 
+0. getting gradient. 
+1. define merit function. 
+2. line search. 
+
+one merit function for forward game: KKT residual for OLNE/FBNE LQ.
+
+one merit function for inverse game: state trajectory prediction loss.
+
+
+

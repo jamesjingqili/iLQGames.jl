@@ -16,8 +16,8 @@ function solve_lq_game_OLNE!(strategies, g::LQGame)
 
         for (ii, udxᵢ) in enumerate(uindex(g))
             inv_Rₜ = inv(cost[ii].R[udxᵢ,udxᵢ])
-            Λₜ = Λₜ + B[:, udxᵢ]*inv_Rₜ*B[:, udxᵢ]'*M_next[ii]
-            ηₜ = ηₜ - B[:, udxᵢ]*inv_Rₜ*(B[:, udxᵢ]'*m_next[ii] + cost[ii].r[udxᵢ])
+            Λₜ +=  B[:, udxᵢ]*inv_Rₜ*B[:, udxᵢ]'*M_next[ii]
+            ηₜ -=  B[:, udxᵢ]*inv_Rₜ*(B[:, udxᵢ]'*m_next[ii] + cost[ii].r[udxᵢ])
         end
         for (ii, udxᵢ) in enumerate(uindex(g))
             pinv_Λₜ = inv(Λₜ)

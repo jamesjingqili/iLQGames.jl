@@ -1,3 +1,4 @@
+using Infiltrator
 @with_kw struct iLQSolver{TLM, TOM, TQM}
     equilibrium_type::String = "FBNE"
     "The regularization term for the state cost quadraticization."
@@ -57,8 +58,10 @@ end
 function scale!(current_strategy::SizedVector, current_op::SystemTrajectory,
                 α_scale::Float64)
     map!(current_strategy, current_strategy) do el
+        # @infiltrate
         return AffineStrategy(el.P, el.α * α_scale)
     end
+    # @infiltrate
 end
 
 function backtrack_scale!(current_strategy::SizedVector,
@@ -71,6 +74,7 @@ function backtrack_scale!(current_strategy::SizedVector,
         scale!(current_strategy, current_op, sf)
         # we compute the new trajectory but abort integration once we have
         # diverged more than solver.max_elwise_diff_step
+        # @infiltrate
         if trajectory!(current_op, cs, current_strategy, last_op,
                        first(last_op.x), solver.max_elwise_diff_step)
             return true
@@ -155,7 +159,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             # stabilized
             return false, current_op, current_strategy
         end
-
+        # @infiltrate i_iter == solver.max_n_iter-1
         i_iter += 1
         converged = has_converged(solver, last_op, current_op)
     end

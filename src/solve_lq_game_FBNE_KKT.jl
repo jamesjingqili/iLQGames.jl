@@ -1,4 +1,3 @@
-using Infiltrator
 function solve_lq_game_OLNE!(strategies, g::LQGame)
     # extract control and input dimensions
     nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
@@ -59,7 +58,6 @@ function solve_lq_game_OLNE!(strategies, g::LQGame)
             M_next, N_next, n_next = Mₜ, Nₜ, nₜ
         end
     end
-    @infiltrate
     inv_Mₜ = inv(Mₜ)
     K, k = inv_Mₜ*Nₜ, inv_Mₜ*nₜ
     for t in 1:1:T        

@@ -52,7 +52,7 @@ module iLQGames
 
     # the solver implementations
     include("solve_lq_game_FBNE.jl")
-    include("solve_lq_game_OLNE.jl")
+    include("solve_lq_game_OLNE_KKT.jl")
     include("ilq_solver.jl")
 
     # simulation

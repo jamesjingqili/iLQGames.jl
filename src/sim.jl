@@ -41,3 +41,4 @@ function cost(g::GeneralGame, traj::SystemTrajectory)
             eachindex(traj.x))
     end
 end
+
