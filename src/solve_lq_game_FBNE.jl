@@ -49,7 +49,7 @@ function solve_lq_game_FBNE!(strategies, g::LQGame)
         Sinv = inv(SMatrix(S))
         P = Sinv * SMatrix(YP)
         α = Sinv * SVector(Yα)
-
+        # @infiltrate
         # compute F and β as intermediate result for estimating the cost to go
         F = A - B * P
         β = -B * α
@@ -62,7 +62,8 @@ function solve_lq_game_FBNE!(strategies, g::LQGame)
             ζ[ii] = F' * (ζ[ii] + Z[ii] * β) + cᵢ.l + PRᵢ * α - P' * cᵢ.r
             Z[ii] = F' * Z[ii] * F + cᵢ.Q + PRᵢ * P
         end
-
+        # @infiltrate
         strategies[kk] = AffineStrategy(P, α)
     end
+    # @infiltrate
 end

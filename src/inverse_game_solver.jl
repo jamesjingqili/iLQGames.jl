@@ -1,15 +1,19 @@
 using LinearAlgebra
 
-
+# first step
 function loss(θ, current_traj, expert_traj)
 	return norm(current_traj - expert_traj)
 end
 
+
+# get gradient
 function OLNE_LQ_gradient(g, x0)
 	T = horizon(g)
 
 end
 
+
+# 
 function update_belief(g, cost_estimate, current_traj, expert_traj)
 	# Bayesian update
 end

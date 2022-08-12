@@ -6,6 +6,6 @@
 one merit function for forward game: KKT residual for OLNE/FBNE LQ.
 
 one merit function for inverse game: state trajectory prediction loss.
-
-
+--------------------------------------------
+Is it possible that using previous computation and make the computation of the inverse of the KKT matrix more efficient?
 
