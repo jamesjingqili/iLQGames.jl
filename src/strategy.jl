@@ -1,4 +1,6 @@
 struct AffineStrategy{nx, nu, TP<:SMatrix{nu, nx}, TA<:SVector{nu}}
+    # "Lagrange multipliers"
+    # λ::Vector=zeros(1)
     "The proportional gain."
     P::TP
     "The feed-forward term."

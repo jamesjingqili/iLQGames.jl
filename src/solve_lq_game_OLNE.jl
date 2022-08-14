@@ -7,6 +7,7 @@ function solve_lq_game_OLNE!(strategies, g::LQGame)
     mₜ = [player_costs(g)[T][ii].l for ii in 1:N]
     M_next = [player_costs(g)[T][ii].Q for ii in 1:N]
     m_next = [player_costs(g)[T][ii].l for ii in 1:N]
+    # p = [player_costs(g)[T][ii].l for ii in 1:N]
     for kk in T:-1:1
         dyn = dynamics(g)[kk]
         cost = player_costs(g)[kk]
@@ -37,6 +38,11 @@ function solve_lq_game_OLNE!(strategies, g::LQGame)
         # @infiltrate
         M_next, m_next = Mₜ, mₜ
     end
+    # for t in 1:1:T
+    #     for ii in 1:1:N
+    #         p[(t-1)*nx*num_player+(ii-1)*nx+1 : (t-1)*nx*num_player+ii*nx] = dynamics(g)[t].A'*()
+    #     end
+    # end
 end
 
 # function solve_lq_game_OLNE!(strategies, g::LQGame)

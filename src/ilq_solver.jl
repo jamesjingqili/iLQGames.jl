@@ -75,7 +75,7 @@ function backtrack_scale!(current_strategy::SizedVector,
         # we compute the new trajectory but abort integration once we have
         # diverged more than solver.max_elwise_diff_step
         # @infiltrate
-        @infiltrate
+        
         if trajectory!(current_op, cs, current_strategy, last_op,
                        first(last_op.x), solver.max_elwise_diff_step)
             return true
@@ -86,27 +86,16 @@ function backtrack_scale!(current_strategy::SizedVector,
     # evaluated and handled by the caller.
     return false
 end
-# function backtrack_scale!(LQ_solution, current_strategy::SizedVector,
-#                           current_op::SystemTrajectory, last_op::SystemTrajectory,
-#                           cs::ControlSystem, solver::iLQSolver)
-#     for i in 1:solver.max_scale_backtrack
-#         # initially we do a large scaling. Afterwards, always half feed forward
-#         # term.
-#         sf = i == 1 ? solver.α_scale_init : solver.α_scale_step
-#         scale!(current_strategy, current_op, sf)
-#         # we compute the new trajectory but abort integration once we have
-#         # diverged more than solver.max_elwise_diff_step
-#         # @infiltrate
-#         if trajectory!(current_op, cs, current_strategy, last_op,
-#                        first(last_op.x), solver.max_elwise_diff_step)
-#             return true
-#         end
-#     end
-#     # in this case, the result in next_op is not really meaningful because the
-#     # integration has not been finished, thus the `success` state needs to be
-#     # evaluated and handled by the caller.
-#     return false
-# end
+function KKT_line_search!(λ::Vector, current_strategy::SizedVector,
+                          current_op::SystemTrajectory, last_op::SystemTrajectory,
+                          cs::ControlSystem, solver::iLQSolver)
+    
+    # (1) get the lq_approx around the current strategy, and construct KKT condition matrix
+    # (2) plug in the λ
+    # (3) line search such that we decrease the KKT residual
+end
+
+
 
 function solve(g::AbstractGame, solver::iLQSolver, args...)
     op0 = zero(SystemTrajectory, g)
@@ -130,8 +119,6 @@ function copyop_prealloc!(solver::iLQSolver, initial_op::SystemTrajectory)
     return copyto!(new_op, initial_op)
 end
 
-
-# function KKT_residual_loss_nonlinear(lqg_approx, solver, g, current_op, last_op)
 
 """
 
@@ -166,26 +153,32 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
 
         # 1. linearize dynamics and quadratisize costs to obtain an lq game
         lq_approximation!(lqg_approx, solver, g, current_op)
-
+        # @infiltrate
         # 2. solve the current lq version of the game
         if solver.equilibrium_type == "FBNE"
-            solve_lq_game_FBNE!(current_strategy, lqg_approx)
+            @time solve_lq_game_FBNE!(current_strategy, lqg_approx)
         elseif solver.equilibrium_type == "FBNE_KKT"
-            solve_lq_game_FBNE_KKT!(current_strategy, lqg_approx)
+            @time λ=solve_lq_game_FBNE_KKT!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "OLNE"
             solve_lq_game_OLNE!(current_strategy, lqg_approx)
         elseif solver.equilibrium_type == "OLNE_KKT"
-            solve_lq_game_OLNE_KKT!(current_strategy, lqg_approx)
+            @time λ=solve_lq_game_OLNE_KKT!(current_strategy, lqg_approx, x0)
         else
             @error "solver.equilibrium_type is wrong. Please check."
         end
-        # @infiltrate
+        @infiltrate
 
         # 3. do line search to stabilize the strategy selection and extract the
         # next operating point
-        copyto!(last_op, current_op)
-        success = backtrack_scale!(current_strategy, current_op, last_op,
-                                   dynamics(g), solver)# take the last_op and current_strategy to current_op. 
+        copyto!(last_op, current_op) 
+        if solver.equilibrium_type == "FBNE_KKT" || solver.equilibrium_type == "OLNE_KKT"
+            @infiltrate
+            success = KKT_line_search!(λ, current_strategy, current_op, last_op, dynamics(g), solver)
+        else
+            success = backtrack_scale!(current_strategy, current_op, last_op,
+                                       dynamics(g), solver)# take the last_op and current_strategy to current_op. 
+        end
+
         if(!success)
             verbose && @warn "Could not stabilize solution."
             # we immetiately return and state that the solution has not been

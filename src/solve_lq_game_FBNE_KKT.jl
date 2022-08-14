@@ -1,5 +1,5 @@
-# using Infiltrator
-function solve_lq_game_FBNE_KKT!(strategies, g::LQGame)
+using Infiltrator
+function solve_lq_game_FBNE_KKT!(strategies, g::LQGame, x0)
     # extract control and input dimensions
     nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
     # m is the input size of agent i, and T is the horizon.
@@ -9,7 +9,7 @@ function solve_lq_game_FBNE_KKT!(strategies, g::LQGame)
     # initialize some intermidiate variables in KKT conditions
     M_next, N_next, n_next = zeros(M_size, M_size), zeros(M_size, nx), zeros(M_size)
     Mₜ,     Nₜ,      nₜ     = zeros(M_size, M_size), zeros(M_size, nx), zeros(M_size)
-
+    λ = zeros(T*nx*num_player)
     record_old_Mₜ_size = M_size
     K, k = zeros(M_size, nx), zeros(M_size)
     for t in T:-1:1 # work in backwards to construct the KKT constraint matrix
@@ -77,15 +77,12 @@ function solve_lq_game_FBNE_KKT!(strategies, g::LQGame)
             K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
             record_old_Mₜ_size += new_M_size
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
-            # @infiltrate       
+            
         end
     end
-    # inv_Mₜ = inv(Mₜ)
-    # K, k = inv_Mₜ*Nₜ, inv_Mₜ*nₜ
-    # for t in 1:1:T
-    #     K_tmp = SMatrix{nu,nx}(K[(t-1)*new_M_size+1:(t-1)*new_M_size+nu, :])
-    #     k_tmp = SVector{nu   }(k[(t-1)*new_M_size+1:(t-1)*new_M_size+nu])
-    #     strategies[t] = AffineStrategy(K_tmp, k_tmp)
-    # end
-    # @infiltrate
+    λ_solution = K*x0+k
+    for t in 1:1:T
+        λ[(t-1)*nx*num_player+1:t*nx*num_player] = λ_solution[ (t-1)*new_M_size+nu+1:(t-1)*new_M_size+nu+nx*num_player ]
+    end
+    return λ
 end
