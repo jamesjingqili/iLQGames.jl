@@ -13,10 +13,12 @@ module iLQGames
     gr()
 
     import Base:
+        +,
         getindex,
         setindex!,
         zero,
         copy
+
 
     # game setup
     export ControlSystem, LTISystem, LTVSystem

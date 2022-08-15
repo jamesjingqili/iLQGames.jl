@@ -15,6 +15,17 @@ function Base.zero(::Type{<:AffineStrategy{nx, nu, TP, TA}}) where {nx, nu, TP, 
     return AffineStrategy(zero(TP), zero(TA))
 end
 
+function Base.:+(a::AffineStrategy, b::AffineStrategy)
+    return AffineStrategy(a.P+b.P, a.α+b.α)
+end
+
+function Base.:*(a::Float64, b::AffineStrategy)
+    return AffineStrategy(a*b.P, a*b.α)
+end
+
+function Base.:-(a::AffineStrategy, b::AffineStrategy)
+    return AffineStrategy(a.P-b.P, a.α-b.α)
+end
 """
     $(TYPEDSIGNATURES)
 

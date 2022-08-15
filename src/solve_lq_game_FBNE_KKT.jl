@@ -1,4 +1,4 @@
-using Infiltrator
+# using Infiltrator
 function solve_lq_game_FBNE_KKT!(strategies, g::LQGame, x0)
     # extract control and input dimensions
     nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
