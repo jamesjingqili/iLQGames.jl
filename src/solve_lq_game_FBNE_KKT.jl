@@ -37,8 +37,9 @@ function solve_lq_game_FBNE_KKT!(strategies, g::LQGame, x0)
             nₜ[1:nu], nₜ[M_size-nx*num_player+1:M_size] = rₜ, qₜ
             
             M_next, N_next, n_next = Mₜ, Nₜ, nₜ
-            inv_Mₜ = inv(Mₜ)
-            K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
+            K, k = -Mₜ\Nₜ, -Mₜ\nₜ
+            # inv_Mₜ = inv(Mₜ)
+            # K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))     
         else
             for (ii, udxᵢ) in enumerate(uindex(g))
@@ -73,8 +74,9 @@ function solve_lq_game_FBNE_KKT!(strategies, g::LQGame, x0)
             nₜ[1:nu], nₜ[nu+nx+1:nu+nx+num_player*nx] = rₜ, qₜ
             
             M_next, N_next, n_next = Mₜ, Nₜ, nₜ
-            inv_Mₜ = inv(Mₜ)
-            K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
+            K, k = -Mₜ\Nₜ, -Mₜ\nₜ
+            # inv_Mₜ = inv(Mₜ)
+            # K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
             record_old_Mₜ_size += new_M_size
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
             

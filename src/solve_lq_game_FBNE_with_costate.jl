@@ -8,11 +8,12 @@ strategies for both players.
 Assumes that dynamics are given by `xₖ₊₁ = Aₖ*xₖ + ∑ᵢBₖⁱ uₖⁱ`.
 
 """
-function solve_lq_game_FBNE!(strategies, g::LQGame)
+function solve_lq_game_FBNE_with_costate!(strategies, g::LQGame, x0)
     # extract control and input dimensions
     nx = n_states(g)
     nu = n_controls(g)
-
+    T = horizon(g)
+    N = n_players(g)
     # initializting the optimal cost to go representation for DP
     # quadratic cost to go
     Z = [pc.Q for pc in last(player_costs(g))]
@@ -24,7 +25,10 @@ function solve_lq_game_FBNE!(strategies, g::LQGame)
     S = @MMatrix zeros(nu, nu)
     YP = @MMatrix zeros(nu, nx)
     Yα = @MVector zeros(nu)
-    
+    # p = [zeros(nx) for i in 1:n_players(g)]
+    λ = zeros((T+1)*nx*n_players(g))
+    x = [zeros(nx) for t in 1:T+1]
+    x[1] = x0
     # working backwards in time to solve the dynamic program
     for kk in horizon(g):-1:1
         dyn = dynamics(g)[kk]
@@ -63,5 +67,23 @@ function solve_lq_game_FBNE!(strategies, g::LQGame)
         end
         strategies[kk] = AffineStrategy(P, α)
     end
-    # @infiltrate
+
+    for t in 1:horizon(g)
+        x[t+1] = (dynamics(g)[t].A - dynamics(g)[t].B*strategies[t].P)*x[t] - dynamics(g)[t].B*strategies[t].α
+    end
+
+    for t in horizon(g):-1:1
+        for (ii, udxᵢ) in enumerate(uindex(g))
+            for (jj, udxⱼ) in enumerate(uindex(g))
+                if jj == ii
+                    # @infiltrate
+                    λ[(t-1)*nx*N+(ii-1)*nx+1 : (t-1)*nx*N+ii*nx] = λ[(t-1)*nx*N+(ii-1)*nx+1 : (t-1)*nx*N+ii*nx] + dynamics(g)[t].A'*(λ[t*nx*N+(ii-1)*nx+1 : t*nx*N+ii*nx] + (player_costs(g)[t][ii].Q*x[t+1] + player_costs(g)[t][ii].l))
+                else
+                    λ[(t-1)*nx*N+(ii-1)*nx+1 : (t-1)*nx*N+ii*nx] = λ[(t-1)*nx*N+(ii-1)*nx+1 : (t-1)*nx*N+ii*nx] + strategies[t].P[udxⱼ,:]'*(dynamics(g)[t].B[:,udxⱼ]'*(λ[t*nx*N+(ii-1)*nx+1 : t*nx*N+ii*nx]+ (player_costs(g)[t][ii].Q*x[t+1] + player_costs(g)[t][ii].l) )  +
+                                player_costs(g)[t][ii].R[udxⱼ, udxⱼ]*strategies[t].P[udxⱼ,:]*x[t+1] +  player_costs(g)[t][ii].r[udxⱼ]  )
+                end
+            end
+        end
+    end
+    return λ[1:T*nx*n_players(g)]
 end

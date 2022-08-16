@@ -1,4 +1,4 @@
-# using Infiltrator
+using Infiltrator
 @with_kw struct iLQSolver{TLM, TOM, TQM}
     equilibrium_type::String = "FBNE"
     "The regularization term for the state cost quadraticization."
@@ -184,19 +184,22 @@ function OL_KKT_line_search!(last_KKT_residual::Float64, λ::Vector, current_str
     α = 1.0
     Δ_strategy = current_strategy-last_strategy
     for iter in 1:solver.max_scale_backtrack
+
         trajectory!(current_op, cs, last_strategy + α*Δ_strategy, last_op, x0, solver.max_elwise_diff_step)
         lq_approximation!(current_lqg_approx, solver, g, current_op)
-        
+        # @infiltrate
         current_loss = OL_KKT_residual(λ, current_op, current_lqg_approx, x0)
         if current_loss < last_KKT_residual
             current_strategy = last_strategy + α*Δ_strategy
             last_KKT_residual = current_loss
+            println(last_KKT_residual)
             return true
             break
         end
         α = α * 0.5
-        return true
     end
+    @infiltrate
+    return true
 end
 # lq_approximation!(lqg::LQGame, solver, g::GeneralGame,
 #                            op::SystemTrajectory)
@@ -252,6 +255,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
     last_KKT_residual = 100.0
     # 0. compute the operating point for the first run.
     # TODO -- we could probably allow to skip this in some warm-starting scenarios
+    # @infiltrate
     trajectory!(current_op, dynamics(g), current_strategy, last_op, x0) # repeat the initial state, for the first run.
     
     # things going to be updated: current_strategy, current_op, lqg_approx, last_λ
@@ -273,10 +277,14 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             @time solve_lq_game_OLNE!(current_strategy, lqg_approx)
         elseif solver.equilibrium_type == "OLNE_KKT"
             @time λ=solve_lq_game_OLNE_KKT!(current_strategy, lqg_approx, x0)
+        elseif solver.equilibrium_type == "OLNE_costate"
+            @time λ=solve_lq_game_OLNE_with_costate!(current_strategy, lqg_approx, x0)
+        elseif solver.equilibrium_type == "FBNE_costate"
+            @time λ=solve_lq_game_FBNE_with_costate!(current_strategy, lqg_approx, x0)
         else
             @error "solver.equilibrium_type is wrong. Please check."
         end
-        
+        @infiltrate
         # 3. do line search to stabilize the strategy selection and extract the
         # next operating point
         copyto!(last_op, current_op)
@@ -285,15 +293,17 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # copyto!(lqg_approx, last_lqg_approx)
         # copyto!(last_strategy, current_strategy)
         
-        if solver.equilibrium_type == "FBNE_KKT" || solver.equilibrium_type == "OLNE_KKT"
+        if solver.equilibrium_type=="FBNE_KKT"||solver.equilibrium_type=="OLNE_KKT"||solver.equilibrium_type=="OLNE_costate"||solver.equilibrium_type=="FBNE_costate"
             # success = backtrack_scale!(current_strategy, current_op, last_op, dynamics(g), solver)
+            @infiltrate
             success = OL_KKT_line_search!(last_KKT_residual, λ, current_strategy, last_strategy, current_op, last_op,
                                         dynamics(g), solver, g, lqg_approx, x0)
+            println(last_KKT_residual)
+            last_λ=copy(λ)
+            last_strategy = copy(current_strategy)
         else
             success = backtrack_scale!(current_strategy, current_op, last_op, dynamics(g), solver)# take the last_op and current_strategy to current_op. 
         end
-        last_λ=copy(λ)
-        last_strategy = copy(current_strategy)
         
         if(!success)
             verbose && @warn "Could not stabilize solution."
@@ -304,6 +314,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # @infiltrate i_iter == solver.max_n_iter-1
         i_iter += 1
         converged = has_converged(solver, last_op, current_op)
+
     end
 
     # NOTE: for `converged == false` the result may not be meaningful. `converged`

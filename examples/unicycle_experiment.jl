@@ -22,11 +22,12 @@ player_inputs = (SVector(1), SVector(2))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver1 = iLQSolver(g, max_n_iter=1, equilibrium_type="FBNE")
+solver1 = iLQSolver(g, max_n_iter=10, equilibrium_type="FBNE_costate")
 x0 = SVector(1, 1)
 converged1, trajectory1, strategies1 = solve(g, solver1, x0)
 
-solver2 = iLQSolver(g, max_n_iter=1, equilibrium_type="OLNE_KKT")
+
+solver2 = iLQSolver(g, max_n_iter=10, equilibrium_type="FBNE")
 converged2, trajectory2, strategies2 = solve(g, solver2, x0)
 
 

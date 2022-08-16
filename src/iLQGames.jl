@@ -57,6 +57,8 @@ module iLQGames
     include("solve_lq_game_FBNE.jl")
     include("solve_lq_game_OLNE_KKT.jl")
     include("solve_lq_game_FBNE_KKT.jl")
+    include("solve_lq_game_OLNE_with_costate.jl")
+    include("solve_lq_game_FBNE_with_costate.jl")
     include("ilq_solver.jl")
 
     # simulation

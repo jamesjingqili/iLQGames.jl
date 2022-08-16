@@ -34,8 +34,9 @@ function solve_lq_game_OLNE_KKT!(strategies, g::LQGame, x0)
             
             M_next, N_next, n_next = Mₜ, Nₜ, nₜ
             # @infiltrate
-            inv_Mₜ = inv(Mₜ)
-            K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
+            K, k = -Mₜ\Nₜ, -Mₜ\nₜ
+            # inv_Mₜ = inv(Mₜ)
+            # K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
             # QR_Mₜ = qr(Mₜ)
             # K, k = QR_Mₜ\(-Nₜ), QR_Mₜ\(-nₜ)
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
@@ -63,8 +64,9 @@ function solve_lq_game_OLNE_KKT!(strategies, g::LQGame, x0)
             nₜ[1:nu], nₜ[nu+nx+1:nu+nx+nx*num_player] = rₜ, qₜ
             
             M_next, N_next, n_next = Mₜ, Nₜ, nₜ
-            inv_Mₜ = inv(Mₜ)
-            K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
+            K, k = -Mₜ\Nₜ, -Mₜ\nₜ
+            # inv_Mₜ = inv(Mₜ)
+            # K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
             # QR_Mₜ = qr(Mₜ)
             # K, k = QR_Mₜ\(-Nₜ), QR_Mₜ\(-nₜ)
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))

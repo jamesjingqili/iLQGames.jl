@@ -4,7 +4,7 @@ import BenchmarkTools
 using Plots
 
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 8, 4, 0.1, 100
+nx, nu, ΔT, game_horizon = 8, 4, 0.1, 40
 
 # setup the dynamics
 struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end
@@ -28,6 +28,7 @@ solver1 = iLQSolver(g, equilibrium_type="OLNE_KKT")
 x0 = SVector(0, 0, pi/2, 1,       1, 0, pi/2, 1)
 converged1, trajectory1, strategies1 = solve(g, solver1, x0)
 
+
 solver2 = iLQSolver(g, equilibrium_type="FBNE_KKT")
 x0 = SVector(0, 0, pi/2, 1,       1, 0, pi/2, 1)
 converged2, trajectory2, strategies2 = solve(g, solver2, x0)
@@ -46,7 +47,7 @@ anim1 = @animate for i in 1:game_horizon
     plot!([1], seriestype = "vline", color = "black", label = "") 
 end
 
-gif(anim1, "car_OLNE_KKT.gif", fps = 10)
+gif(anim1, "car_OLNE_KKT_LineSearch.gif", fps = 10)
 
 
 anim2 = @animate for i in 1:game_horizon
@@ -56,5 +57,5 @@ anim2 = @animate for i in 1:game_horizon
     plot!([1], seriestype = "vline", color = "black", label = "")
 end
 
-gif(anim2, "car_FBNE_KKT.gif", fps = 10)
+gif(anim2, "car_FBNE_KKT_LineSearch.gif", fps = 10)
 
