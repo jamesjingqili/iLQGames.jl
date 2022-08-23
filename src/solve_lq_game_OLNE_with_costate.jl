@@ -5,7 +5,7 @@ function solve_lq_game_OLNE_with_costate!(strategies, g::LQGame, x0)
     Mₜ = [player_costs(g)[T][ii].Q for ii in 1:N]
     mₜ = [player_costs(g)[T][ii].l for ii in 1:N]
 
-    λ = zeros(T*nx*N)
+    λ = zeros((T+1)*nx*N)
     x = [zeros(nx) for t in 1:T+1]
     x[1] = x0
     for kk in T:-1:1
@@ -40,8 +40,15 @@ function solve_lq_game_OLNE_with_costate!(strategies, g::LQGame, x0)
         for ii in 1:1:N
             dyn = dynamics(g)[t]
             x[t+1] = dyn.A*x[t] + dyn.B*(-strategies[t].P*x[t]-strategies[t].α)
-            λ[(t-1)*nx*N+(ii-1)*nx+1 : (t-1)*nx*N+ii*nx] = dyn.A'*(Mₜ[ii,t+1]*x[t+1]+mₜ[ii,t+1])
+            # λ[(t-1)*nx*N+(ii-1)*nx+1 : (t-1)*nx*N+ii*nx] = dyn.A'*(Mₜ[ii,t+1]*x[t+1]+mₜ[ii,t+1])
         end
     end
-    return λ
+    for t in horizon(g):-1:1
+        for ii in 1:N
+            # @infiltrate
+            λ[(t-1)*nx*N+(ii-1)*nx+1:(t-1)*nx*N+ii*nx] = transpose(dynamics(g)[t].A)*(λ[t*nx*N+(ii-1)*nx+1:t*nx*N+ii*nx] + (player_costs(g)[t][ii].Q*x[t+1] + player_costs(g)[t][ii].l))
+        end
+    end
+    # @infiltrate
+    return λ[1:T*nx*n_players(g)]
 end

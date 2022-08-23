@@ -27,8 +27,11 @@ module iLQGames
     # games solution
     export GeneralGame
     export iLQSolver, solve, solve!, cost
+    export inverse_game_loss, inverse_game_gradient, inverse_game_gradient_descent
+    export solve_lq_game_OLNE_KKT!, solve_lq_game_OLNE_with_costate!, solve_lq_game_FBNE_KKT!, solve_lq_game_FBNE_with_costate!
     # visualization
     export plot_traj, plot_states, plot_inputs, @animated
+    export trajectory!
 
     # some macro sugar to make life easier
     include("sugar.jl")
@@ -77,5 +80,9 @@ module iLQGames
     # some helpful tooling
     include("plot_utils.jl")
     include("test_utils.jl")
+
+
+    # inverse game solver
+    include("inverse_game_solver.jl")
 
 end # module

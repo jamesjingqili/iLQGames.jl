@@ -1,7 +1,7 @@
--1. KKT FBNE. 
-0. getting gradient. 
-1. define merit function. 
-2. line search. 
+-1. KKT FBNE. 				Done!
+0. getting gradient. 		
+1. define merit function.   Done!
+2. line search. 			Done!
 
 one merit function for forward game: KKT residual for OLNE/FBNE LQ.
 

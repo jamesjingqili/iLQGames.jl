@@ -1,3 +1,4 @@
+using Infiltrator
 function solve_lq_game_OLNE_KKT!(strategies, g::LQGame, x0)
     # extract control and input dimensions
     nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
@@ -40,6 +41,7 @@ function solve_lq_game_OLNE_KKT!(strategies, g::LQGame, x0)
             # QR_Mₜ = qr(Mₜ)
             # K, k = QR_Mₜ\(-Nₜ), QR_Mₜ\(-nₜ)
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
+            # @infiltrate
         else
             for (ii, udxᵢ) in enumerate(uindex(g))
                 Âₜ[(ii-1)*nx+1:ii*nx, (ii-1)*nx+1:ii*nx] = A
@@ -69,12 +71,16 @@ function solve_lq_game_OLNE_KKT!(strategies, g::LQGame, x0)
             # K, k = -inv_Mₜ*Nₜ, -inv_Mₜ*nₜ
             # QR_Mₜ = qr(Mₜ)
             # K, k = QR_Mₜ\(-Nₜ), QR_Mₜ\(-nₜ)
+            # @infiltrate
             strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
         end
     end   
     λ_solution = K*x0+k
+    
     for t in 1:1:T
+
         λ[(t-1)*nx*num_player+1:t*nx*num_player] = λ_solution[(t-1)*M_size+nu+1:(t-1)*M_size+nu+nx*num_player]
     end
+    # @infiltrate
     return λ
 end

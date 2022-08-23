@@ -1,4 +1,4 @@
-using Infiltrator
+# using Infiltrator
 @with_kw struct iLQSolver{TLM, TOM, TQM}
     equilibrium_type::String = "FBNE"
     "The regularization term for the state cost quadraticization."
@@ -19,7 +19,7 @@ using Infiltrator
     max_elwise_diff_converged::Float64 = α_scale_init/10
     "The maximum elementwise difference bewteen operating points for per
     iteration step."
-    max_elwise_diff_step::Float64 = 30 * max_elwise_diff_converged
+    max_elwise_diff_step::Float64 = 20 * max_elwise_diff_converged
     "Preallocated memory for lq approximations."
     _lq_mem::TLM
     "Preallocated memory for quadraticization results."
@@ -58,18 +58,9 @@ end
 function scale!(current_strategy::SizedVector, current_op::SystemTrajectory,
                 α_scale::Float64)
     map!(current_strategy, current_strategy) do el
-        # @infiltrate
         return AffineStrategy(el.P, el.α * α_scale) # for each element in the strategy, scale the affine term by 0.5
     end
-    # @infiltrate
 end
-
-# function add_two_strategies!(current_strategy::SizedVector, last_strategy::SizedVector, α)
-#     map!(current_strategy, current_strategy) do el
-#         # @infiltrate
-#         return AffineStrategy(el.P+last_strategy, el.α * α_scale) # for each element in the strategy, scale the affine term by 0.5
-#     end
-# end
 
 function backtrack_scale!(current_strategy::SizedVector,
                           current_op::SystemTrajectory, last_op::SystemTrajectory,
@@ -81,7 +72,6 @@ function backtrack_scale!(current_strategy::SizedVector,
         scale!(current_strategy, current_op, sf)
         # we compute the new trajectory but abort integration once we have
         # diverged more than solver.max_elwise_diff_step
-        # @infiltrate
         
         if trajectory!(current_op, cs, current_strategy, last_op,
                        first(last_op.x), solver.max_elwise_diff_step)
@@ -94,15 +84,7 @@ function backtrack_scale!(current_strategy::SizedVector,
     return false
 end
 
-# function scale_trajectory!(current_strategy::SizedVector, current_op::SystemTrajectory,
-#                         α_scale::Float64)
-#     map!(current_strategy, current_strategy) do el
-#         # @infiltrate
-#         return AffineStrategy(el.P, el.α * α_scale) # for each element in the strategy, scale the affine term by 0.5
-#     end
-# end
 
-# function KKT_residual(λ::Vector, current_op::SystemTrajectory, g::LQGame, x0::SVector) #1    
 function OL_KKT_residual(λ::Vector, current_op::SystemTrajectory, g::LQGame, x0::SVector) #1    
     # current_op is the trajectory under the strategy evaluated now
     # g is the linear quadratic approximation for the trajectory under the strategy evaluated now
@@ -176,7 +158,7 @@ function OL_KKT_residual(λ::Vector, current_op::SystemTrajectory, g::LQGame, x0
     return loss   
 end
 
-function OL_KKT_line_search!(last_KKT_residual::Float64, λ::Vector, current_strategy::SizedVector, last_strategy::SizedVector,
+function OL_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::SizedVector, last_strategy::SizedVector,
                           current_op::SystemTrajectory, last_op::SystemTrajectory,
                           cs::ControlSystem, solver::iLQSolver, g::GeneralGame, current_lqg_approx::LQGame, x0::SVector) #2
     # return the current_op as the new trajectory, the current_strategy as the γₖ + α(γ_next - γₖ), and the last_KKT_residual
@@ -184,29 +166,51 @@ function OL_KKT_line_search!(last_KKT_residual::Float64, λ::Vector, current_str
     α = 1.0
     Δ_strategy = current_strategy-last_strategy
     for iter in 1:solver.max_scale_backtrack
-
         trajectory!(current_op, cs, last_strategy + α*Δ_strategy, last_op, x0, solver.max_elwise_diff_step)
         lq_approximation!(current_lqg_approx, solver, g, current_op)
-        # @infiltrate
         current_loss = OL_KKT_residual(λ, current_op, current_lqg_approx, x0)
+        # @infiltrate
         if current_loss < last_KKT_residual
             current_strategy = last_strategy + α*Δ_strategy
-            last_KKT_residual = current_loss
-            println(last_KKT_residual)
-            return true
+            last_KKT_residual = copy(current_loss)
+            println("KKT residual is ",last_KKT_residual)
+            # println("Line Search finished!")
+            return true, current_strategy, current_op, last_KKT_residual
+            # println("α is ", α)
             break
         end
         α = α * 0.5
     end
-    @infiltrate
-    return true
+    # println("Current α is ",α)
+    # @warn "Line Search failed."
+    return true, current_strategy, current_op, last_KKT_residual
 end
-# lq_approximation!(lqg::LQGame, solver, g::GeneralGame,
-#                            op::SystemTrajectory)
-#     # (1) get the lq_approx around the current strategy, and construct KKT condition matrix
-#     # (2) plug in the λ
-#     # (3) line search such that we decrease the KKT residual
-# end
+
+function trajectory_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::SizedVector, last_strategy::SizedVector,
+                                    current_op::SystemTrajectory, last_op::SystemTrajectory,
+                                    cs::ControlSystem, solver::iLQSolver, g::GeneralGame, current_lqg_approx::LQGame, x0::SVector)
+    α = 1.0
+    Δ_op = current_op - last_op
+    for iter in 1:solver.max_scale_backtrack
+        tmp_op = last_op+α*Δ_op
+        lq_approximation!(current_lqg_approx, solver, g, tmp_op)
+        current_loss = OL_KKT_residual(λ, tmp_op, current_lqg_approx, x0)
+        if current_loss < last_KKT_residual
+            last_KKT_residual = current_loss
+            # println(last_KKT_residual)
+            println("Line Search succeed!")
+            current_op = last_op + α*Δ_op
+            return true, current_strategy, current_op, last_KKT_residual
+            # println("α is ", α)
+            break
+        end
+        α = α * 0.5
+    end
+    # println("Current α is ",α)
+    # @warn "Line Search failed."
+    return true, current_strategy, current_op, last_KKT_residual
+end
+
 
 function solve(g::AbstractGame, solver::iLQSolver, args...)
     op0 = zero(SystemTrajectory, g)
@@ -250,9 +254,9 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
     current_op = initial_op
     current_strategy = initial_strategy
     lqg_approx = solver._lq_mem
-    last_λ = ones(horizon(g)*n_states(g)*length(uindex(g)))
+    last_λ = 100*ones(horizon(g)*n_states(g)*length(uindex(g)))
     last_strategy = copy(initial_strategy)
-    last_KKT_residual = 100.0
+    
     # 0. compute the operating point for the first run.
     # TODO -- we could probably allow to skip this in some warm-starting scenarios
     # @infiltrate
@@ -270,21 +274,21 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         last_KKT_residual = OL_KKT_residual(last_λ, current_op, lqg_approx, x0)
         # 2. solve the current lq version of the game
         if solver.equilibrium_type == "FBNE"
-            @time solve_lq_game_FBNE!(current_strategy, lqg_approx)
+            solve_lq_game_FBNE!(current_strategy, lqg_approx)
         elseif solver.equilibrium_type == "FBNE_KKT"
-            @time λ=solve_lq_game_FBNE_KKT!(current_strategy, lqg_approx, x0)
+            λ=solve_lq_game_FBNE_KKT!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "OLNE"
-            @time solve_lq_game_OLNE!(current_strategy, lqg_approx)
+            solve_lq_game_OLNE!(current_strategy, lqg_approx)
         elseif solver.equilibrium_type == "OLNE_KKT"
-            @time λ=solve_lq_game_OLNE_KKT!(current_strategy, lqg_approx, x0)
+            λ=solve_lq_game_OLNE_KKT!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "OLNE_costate"
-            @time λ=solve_lq_game_OLNE_with_costate!(current_strategy, lqg_approx, x0)
+            λ=solve_lq_game_OLNE_with_costate!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "FBNE_costate"
-            @time λ=solve_lq_game_FBNE_with_costate!(current_strategy, lqg_approx, x0)
+            λ=solve_lq_game_FBNE_with_costate!(current_strategy, lqg_approx, x0)
         else
             @error "solver.equilibrium_type is wrong. Please check."
         end
-        @infiltrate
+        # @infiltrate
         # 3. do line search to stabilize the strategy selection and extract the
         # next operating point
         copyto!(last_op, current_op)
@@ -292,13 +296,17 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # copyto!(current_strategy, last_strategy)
         # copyto!(lqg_approx, last_lqg_approx)
         # copyto!(last_strategy, current_strategy)
-        
+        # @infiltrate
         if solver.equilibrium_type=="FBNE_KKT"||solver.equilibrium_type=="OLNE_KKT"||solver.equilibrium_type=="OLNE_costate"||solver.equilibrium_type=="FBNE_costate"
             # success = backtrack_scale!(current_strategy, current_op, last_op, dynamics(g), solver)
-            @infiltrate
-            success = OL_KKT_line_search!(last_KKT_residual, λ, current_strategy, last_strategy, current_op, last_op,
+            # @infiltrate
+            success, current_strategy, current_op, last_KKT_residual = OL_KKT_line_search!(last_KKT_residual, λ, current_strategy, last_strategy, current_op, last_op,
                                         dynamics(g), solver, g, lqg_approx, x0)
-            println(last_KKT_residual)
+            # success = OL_KKT_line_search!(last_KKT_residual, λ, current_strategy, last_strategy, current_op, last_op,
+            #                             dynamics(g), solver, g, lqg_approx, x0)
+            # println("KKT value:",last_KKT_residual)
+            # @infiltrate
+            trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
             last_λ=copy(λ)
             last_strategy = copy(current_strategy)
         else
@@ -306,7 +314,8 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         end
         
         if(!success)
-            verbose && @warn "Could not stabilize solution."
+            # @infiltrate
+            verbose && @warn "Could not stabilize solution. Or, line searched failed."
             # we immetiately return and state that the solution has not been
             # stabilized
             return false, current_op, current_strategy

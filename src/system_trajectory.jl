@@ -51,6 +51,18 @@ function Base.zero(::Type{SystemTrajectory}, g)
     return zero(SystemTrajectory{h,ΔT,nx,nu})
 end
 
+function Base.:-(a::SystemTrajectory, b::SystemTrajectory)
+    return SystemTrajectory{samplingtime(a)}(a.x-b.x, a.u-b.u, initialtime(a))
+end
+
+function Base.:*(a::Float64, b::SystemTrajectory)
+    return SystemTrajectory{samplingtime(b)}(a*b.x, a*b.u, initialtime(b))
+end
+
+function Base.:+(a::SystemTrajectory, b::SystemTrajectory)
+    return SystemTrajectory{samplingtime(a)}(a.x+b.x, a.u+b.u, initialtime(a))
+end
+
 function zero!(traj::SystemTrajectory)
     for k in 1:horizon(traj)
         traj.x[k] = zero(traj.x[k])
