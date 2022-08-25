@@ -26,6 +26,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
+BenchmarkTools = "1"
 ColorSchemes = "3.9"
 Colors = "0.12"
 DataStructures = "0.17, 0.18"
