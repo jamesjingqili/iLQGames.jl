@@ -27,7 +27,7 @@ module iLQGames
     # games solution
     export GeneralGame
     export iLQSolver, solve, solve!, cost
-    export inverse_game_loss, inverse_game_gradient, inverse_game_gradient_descent
+    # export inverse_game_loss, inverse_game_gradient, inverse_game_gradient_descent
     export solve_lq_game_OLNE_KKT!, solve_lq_game_OLNE_with_costate!, solve_lq_game_FBNE_KKT!, solve_lq_game_FBNE_with_costate!
     # visualization
     export plot_traj, plot_states, plot_inputs, @animated

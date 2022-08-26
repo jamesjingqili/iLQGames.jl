@@ -1,7 +1,7 @@
 
 function parameterized_cost(θ::Vector)
-    costs=(FunctionPlayerCost((g, x, u, t) -> (θ[1]*(x[1]-1)^2 + θ[2]*(x[4]-1)^2 + θ[3]*(u[1]^2+u[2]^2) - 0.1*θ[3]*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> (θ[4]*((x[5]-1)^2+(x[8]-1)^2+u[3]^2+u[4]^2)-0.1*θ[4]*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+    costs=(FunctionPlayerCost((g, x, u, t) -> (θ[1]*(x[1]-1)^2 + (2*(x[4]-1)^2 + (u[1]^2+u[2]^2) - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))),
+             FunctionPlayerCost((g, x, u, t) -> (θ[2]*(x[5]-1)^2+(2*(x[8]-1)^2+u[3]^2+u[4]^2-0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))))
     return costs
 end
 
@@ -9,7 +9,7 @@ end
 
 max_GD_iteration_num = 20
 
-θ = [12;1;1;1]
+θ = [12;1]
 θ_dim = length(θ)
 sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
 sol[1] = θ
@@ -17,7 +17,7 @@ loss = zeros(max_GD_iteration_num)
 gradient = [zeros(θ_dim) for iter in 1:max_GD_iteration_num]
 for iter in 1:max_GD_iteration_num
     sol[iter+1], loss[iter], gradient[iter] = inverse_game_gradient_descent(sol[iter], g, expert_traj1, x0, 20, 
-                                                                            parameterized_cost, "OLNE_KKT")
+                                                                            parameterized_cost, "FBNE_KKT")
     if loss[iter]<0.1
         break
     end

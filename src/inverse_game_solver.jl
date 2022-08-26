@@ -1,5 +1,9 @@
 using Infiltrator
 using LinearAlgebra
+using iLQGames:
+	SystemTrajectory
+	GeneralGame
+using Distributions
 
 # evaluate trajectory prediction loss
 function inverse_game_loss(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, parameterized_cost, equilibrium_type)
@@ -27,20 +31,19 @@ function inverse_game_gradient(current_loss::Float64, θ::Vector, g::GeneralGame
 		θ_new[ii] += Δ
 		new_loss, tmp_traj, tmp_strategy = inverse_game_loss(θ_new, g, expert_traj, x0, parameterized_cost, equilibrium_type)
 		gradient[ii] = (new_loss-current_loss)/Δ
-		# @infiltrate
 	end
 	return gradient
 end
 
 
 
-function inverse_game_gradient_LQ(solver, traj, θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, parameterized_cost, equilibrium_type)
-	num_parameters = length(θ)
-	gradient = zeros(num_parameters)
-	lqg = lq_approximation(solver, g, traj)
+# function inverse_game_gradient_LQ(solver, traj, θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, parameterized_cost, equilibrium_type)
+# 	num_parameters = length(θ)
+# 	gradient = zeros(num_parameters)
+# 	lqg = lq_approximation(solver, g, traj)
 
-	return gradient
-end
+# 	return gradient
+# end
 
 # line search
 function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, max_GD_iteration_num::Int, parameterized_cost, equilibrium_type)
@@ -48,14 +51,15 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
 	current_loss, current_traj, current_str = inverse_game_loss(θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
 	θ_next = θ
 	new_loss = 0.0
-	gradient = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
+	# gradient = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
+	gradient = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj), θ)
 	for iter in 1:max_GD_iteration_num
 		θ_next = θ-α*gradient
 		new_loss, new_traj, new_str = inverse_game_loss(θ_next, g, expert_traj, x0, parameterized_cost, equilibrium_type)
 		if new_loss < current_loss
 			println("Inverse Game Line Search Step Size: ", α)
 			return θ_next, new_loss, gradient
-			@infiltrate
+			
 			break
 		end
 		α = α*0.5
@@ -65,16 +69,38 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
 end
 
 
-function define_gradient_game(g, θ, x0)
-	new_game = 
-	return new_game
-end
 
 
-# 
-function inverse_game_update_belief(θ::Vector, cost_basis::PlayerCost, g::GeneralGame,
-						expert_traj::SystemTrajectory, x0::SVector)
-	# return belief
+function inverse_game_update_belief(θ::Vector, g::GeneralGame,
+						expert_traj::SystemTrajectory, x0::SVector, 
+						parameterized_cost, equilibrium_type1, equilibrium_type2)
+	current_cost = parameterized_cost(θ) # modify the cost vector
+	current_game = GeneralGame(g.h, g.uids, g.dyn, current_cost)
+	solver1 = iLQSolver(current_game, max_scale_backtrack=10, max_elwise_diff_step=Inf,equilibrium_type=equilibrium_type1)
+	converged1, trajectory1, strategies1 = solve(current_game, solver1, x0)
+
+	solver2 = iLQSolver(current_game, max_scale_backtrack=10, max_elwise_diff_step=Inf,equilibrium_type=equilibrium_type2)
+	converged2, trajectory2, strategies2 = solve(current_game, solver2, x0)
+	prior1 = 0.5
+	prior2 = 0.5
+	x1_list = reshape(trajectory1.x, length(trajectory1.x)) 
+	u1_list = reshape(trajectory1.u, length(trajectory1.u))
+	x2_list = reshape(trajectory2.x, length(trajectory2.x))
+	u2_list = reshape(trajectory2.u, length(trajectory2.u))
+	x1_list = [x1_list[ii] for ii in 1:length(x1_list)]
+	u1_list = [u1_list[ii] for ii in 1:length(u1_list)]
+	x2_list = [x2_list[ii] for ii in 1:length(x2_list)]
+	u2_list = [u2_list[ii] for ii in 1:length(u2_list)]
+	@infiltrate
+	probability1 = pdf(MvNormal([x1_list; u1_list], I(length([x1_list; u1_list]))), expert_traj)
+	probability2 = pdf(MvNormal([x1_list; u1_list], I(length([x1_list; u1_list]))), expert_traj)
+	belief1 = (probability1*prior1)/(probability1*prior1+probability2*prior2)
+	belief2 = (probability2*prior2)/(probability1*prior1+probability2*prior2)
+	if belief1 > belief2
+		return equilibrium_type1
+	else
+		return equilibrium_type2
+	end
 end
 
 

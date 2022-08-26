@@ -1,4 +1,4 @@
-module Differentiable_FBNE_Solver
+module Differentiable_Solvers
 
 "----------------------- differentiable forward game solver -----------------------"
 
@@ -22,31 +22,31 @@ using iLQGames:
     time_disc2cont,
     linearize_discrete,
     regularize
-
-solve_lqgame(g::LQGame) = solve_lqgame(uindex(g), dynamics(g), player_costs(g))
+using Infiltrator
+using LinearAlgebra
+using StaticArrays
+# untyped_solve_lq_game_FBNE(g::LQGame) = untyped_solve_lq_game_FBNE(uindex(g), dynamics(g), player_costs(g))
 
 "A type relaxed version of solve_lq_game! without side effects"
-function solve_lqgame(uids, dynamics, costs)
+function solve_lq_game_FBNE(g::LQGame)
+    costs = player_costs(g)
     h = length(costs)
+    uids = uindex(g)
 
     # initializting the optimal cost to go representation for DP
     # quadratic cost to go
     cost_to_go = map(c -> (ζ = c.l, Z = c.Q), last(costs))
-    nx = first(size(dynamics[1].A))
+    nx = first(size(dynamics(g)[1].A))
     full_xrange = StaticArrays.SVector{nx}(1:nx)
-
+    
     # working backwards in time to solve the dynamic program
     map(h:-1:1) do kk
-        dyn = dynamics[kk]
+        dyn = dynamics(g)[kk]
         cost = costs[kk]
         # convenience shorthands for the relevant quantities
         A = dyn.A
         B = dyn.B
 
-        # Compute Ps given previously computed Zs.
-        # Refer to equation 6.17a in Basar and Olsder.
-        # This will involve solving a system of linear matrix equations of the
-        # form S * P = Y.
         S, Y = mapreduce((a, b) -> vcat.(a, b), uids, cost, cost_to_go) do uidᵢ, cᵢ, Cᵢ
             BᵢZᵢ = B[:, uidᵢ]' * Cᵢ.Z
             (
@@ -78,8 +78,86 @@ function solve_lqgame(uids, dynamics, costs)
     end
 end
 
+
+function untyped_solve_lq_game_FBNE(g::LQGame)
+    nx = n_states(g)
+    nu = n_controls(g)
+    Z = [pc.Q for pc in last(player_costs(g))]
+    ζ = [pc.l for pc in last(player_costs(g))]
+    strategies = []
+    
+    T = length(player_costs(g))
+    for kk in T:-1:1
+        S = zeros(nu, nu)
+        YP = zeros(nu, nx)
+        Yα = zeros(nu)
+        dyn = dynamics(g)[kk]
+        cost = player_costs(g)[kk]
+        A = dyn.A
+        B = dyn.B
+        # @infiltrate
+        for (ii, udxᵢ) in enumerate(uindex(g))
+            BᵢZᵢ = B[:, udxᵢ]' * Z[ii]
+            S[udxᵢ, :] = cost[ii].R[udxᵢ, :] + BᵢZᵢ*B
+            YP[udxᵢ, :] =  BᵢZᵢ*A
+            Yα[udxᵢ] =  B[:, udxᵢ]'*ζ[ii] + cost[ii].r[udxᵢ]
+        end
+        # Sinv = inv(S)
+        P = S\YP
+        α = S\Yα
+        F = A - B * P
+        β = -B * α
+        for ii in 1:n_players(g)
+            cᵢ= cost[ii]
+            PRᵢ = P' * cᵢ.R
+            ζ[ii] = F' * (ζ[ii] + Z[ii] * β) + cᵢ.l + PRᵢ * α - P' * cᵢ.r
+            Z[ii] = F' * Z[ii] * F + cᵢ.Q + PRᵢ * P
+        end
+        push!(strategies, AffineStrategy(SMatrix{nu,nx}(P), SVector{nu}(α)))
+    end
+    return strategies
+end
+
+function solve_lq_game_OLNE(g::LQGame)
+    nx, nu, N = n_states(g), n_controls(g), n_players(g)
+    T = length(player_costs(g))
+    # N is the number of players
+    Mₜ = [player_costs(g)[T][ii].Q for ii in 1:N]
+    mₜ = [player_costs(g)[T][ii].l for ii in 1:N]
+    strategies = []
+    
+    for kk in T:-1:1
+        tmp_M = [zeros(nx, nx) for ii in 1:N]
+        tmp_m = [zeros(nx) for ii in 1:N]
+        Mₜ, mₜ = [tmp_M Mₜ], [tmp_m mₜ]
+        dyn = dynamics(g)[kk]
+        cost = player_costs(g)[kk]
+        A, B = dyn.A, dyn.B
+        Λₜ, ηₜ = I(nx), zeros(nx)
+        P = zeros(ForwardDiff.Dual, nu, nx)
+        α = zeros(ForwardDiff.Dual, nu)
+        for (ii, udxᵢ) in enumerate(uindex(g))
+            inv_Rₜ = inv(cost[ii].R[udxᵢ,udxᵢ])
+            Λₜ +=  B[:, udxᵢ]*inv_Rₜ*B[:, udxᵢ]'*Mₜ[ii,2]
+            ηₜ -=  B[:, udxᵢ]*inv_Rₜ*(B[:, udxᵢ]'*mₜ[ii,2] + cost[ii].r[udxᵢ])
+        end
+        for (ii, udxᵢ) in enumerate(uindex(g))
+            
+            inv_Λₜ = inv(Λₜ)
+            inv_Rₜ = inv(cost[ii].R[udxᵢ,udxᵢ])
+            P[udxᵢ,:] = - inv_Rₜ*B[:,udxᵢ]'*(Mₜ[ii,2]*inv_Λₜ*A)
+            α[udxᵢ] = - inv_Rₜ*B[:,udxᵢ]'*(Mₜ[ii,2]*inv_Λₜ*ηₜ+mₜ[ii,2]) - inv_Rₜ*cost[ii].r[udxᵢ]
+            mₜ[ii,1] = cost[ii].l + A'*(mₜ[ii,2] + Mₜ[ii,2]*inv_Λₜ*ηₜ)
+            Mₜ[ii,1] = cost[ii].Q + A'*Mₜ[ii,2]*inv_Λₜ*A
+        end
+        push!(strategies, AffineStrategy(SMatrix{nu,nx}(-P), SVector{nu}(-α)))
+    end
+    return strategies
+end
+
+
 "A type relaxed version of trajectory! without side effects"
-function trajectory(x0, g, γ = solve_lqgame(g), op = zero(SystemTrajectory, g))
+function trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
     xs, us = StaticArrays.SVector{n_states(g)}[], StaticArrays.SVector{n_controls(g)}[]
     reduce(zip(γ, op.x, op.u); init = x0) do xₖ, (γₖ, x̃ₖ, ũₖ)
         Δxₖ = xₖ - x̃ₖ
@@ -89,7 +167,7 @@ function trajectory(x0, g, γ = solve_lqgame(g), op = zero(SystemTrajectory, g))
         next_x(dynamics(g), xₖ, uₖ, 0.0)
     end
     vectype = StaticArrays.SizedVector{length(γ)}
-    SystemTrajectory{0.1}(vectype(xs), vectype(us), 0.0)
+    SystemTrajectory{0.1}(vectype(xs), vectype(us), 0.0) # loses information
 end
 
 "A type relaxed version of lq_approximation! without side effects and gradient

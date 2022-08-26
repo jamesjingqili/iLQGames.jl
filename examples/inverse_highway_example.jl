@@ -3,6 +3,8 @@ import iLQGames: dx
 import BenchmarkTools
 using Plots
 using ForwardDiff
+using iLQGames:
+    SystemTrajectory
 
 # parametes: number of states, number of inputs, sampling time, horizon
 nx, nu, ΔT, game_horizon = 8, 4, 0.1, 40
