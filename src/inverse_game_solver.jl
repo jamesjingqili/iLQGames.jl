@@ -76,24 +76,31 @@ function inverse_game_update_belief(θ::Vector, g::GeneralGame,
 						parameterized_cost, equilibrium_type1, equilibrium_type2)
 	current_cost = parameterized_cost(θ) # modify the cost vector
 	current_game = GeneralGame(g.h, g.uids, g.dyn, current_cost)
+
 	solver1 = iLQSolver(current_game, max_scale_backtrack=10, max_elwise_diff_step=Inf,equilibrium_type=equilibrium_type1)
 	converged1, trajectory1, strategies1 = solve(current_game, solver1, x0)
-
 	solver2 = iLQSolver(current_game, max_scale_backtrack=10, max_elwise_diff_step=Inf,equilibrium_type=equilibrium_type2)
 	converged2, trajectory2, strategies2 = solve(current_game, solver2, x0)
 	prior1 = 0.5
 	prior2 = 0.5
-	x1_list = reshape(trajectory1.x, length(trajectory1.x)) 
-	u1_list = reshape(trajectory1.u, length(trajectory1.u))
-	x2_list = reshape(trajectory2.x, length(trajectory2.x))
-	u2_list = reshape(trajectory2.u, length(trajectory2.u))
-	x1_list = [x1_list[ii] for ii in 1:length(x1_list)]
-	u1_list = [u1_list[ii] for ii in 1:length(u1_list)]
-	x2_list = [x2_list[ii] for ii in 1:length(x2_list)]
-	u2_list = [u2_list[ii] for ii in 1:length(u2_list)]
-	@infiltrate
-	probability1 = pdf(MvNormal([x1_list; u1_list], I(length([x1_list; u1_list]))), expert_traj)
-	probability2 = pdf(MvNormal([x1_list; u1_list], I(length([x1_list; u1_list]))), expert_traj)
+	x1_list, u1_list, x2_list, u2_list, expert_traj_x, expert_traj_u = [], [], [], [], [], []
+	for ii in 1:g.h
+		for jj in 1:length(x0)
+			push!(x1_list, trajectory1.x[ii][jj])
+			push!(u1_list, trajectory1.u[ii][jj])
+			push!(x2_list, trajectory2.x[ii][jj])
+			push!(u2_list, trajectory2.u[ii][jj])
+			push!(expert_traj_x, expert_traj.x[ii][jj])
+			push!(expert_traj_u, expert_traj.u[ii][jj])
+		end
+	end
+	# @infiltrate
+	hypothesis_traj1 = Vector{Float64}([x1_list; u1_list])
+	hypothesis_traj2 = Vector{Float64}([x2_list; u2_list])
+	expert_traj_list = Vector{Float64}([expert_traj_x; expert_traj_u])
+	n_dim = length([x1_list; u1_list])
+	probability1 = pdf(MvNormal(hypothesis_traj1, Matrix{Float64}(I, n_dim, n_dim)), expert_traj_list)
+	probability2 = pdf(MvNormal(hypothesis_traj2, Matrix{Float64}(I, n_dim, n_dim)), expert_traj_list)
 	belief1 = (probability1*prior1)/(probability1*prior1+probability2*prior2)
 	belief2 = (probability2*prior2)/(probability1*prior1+probability2*prior2)
 	if belief1 > belief2
@@ -103,7 +110,3 @@ function inverse_game_update_belief(θ::Vector, g::GeneralGame,
 	end
 end
 
-
-
-# 1. how to define new game structure?
-# 2. how to 
