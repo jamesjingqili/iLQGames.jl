@@ -25,7 +25,7 @@ end
 max_GD_iteration_num = 20
 
 
-θ = [5.0]
+θ = [13.0;]
 θ_dim = length(θ)
 sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
 sol[1] = θ

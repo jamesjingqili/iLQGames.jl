@@ -5,13 +5,20 @@ using LinearAlgebra
 include("diff_solver.jl")
 include("inverse_game_solver.jl")
 
-θ=[10.0]
+# θ=[10.0; 3.0;]
+
+# function parameterized_cost(θ::Vector)
+#     costs=( FunctionPlayerCost((g, x, u, t) -> (θ[1]*(x[1]-1)^2 + θ[2]*(2*(x[4]-1)^2 + (u[1]^2+u[2]^2) - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))),
+#             FunctionPlayerCost((g, x, u, t) -> (   2*(x[5]-1)^2 + (2*(x[8]-1)^2 + (u[3]^2+u[4]^2) - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))))
+#     return costs
+# end
 
 function parameterized_cost(θ::Vector)
-    costs=( FunctionPlayerCost((g, x, u, t) -> (θ[1]*(x[1]-1)^2 + (2*(x[4]-1)^2 + (u[1]^2+u[2]^2) - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))),
-            FunctionPlayerCost((g, x, u, t) -> (   2*(x[5]-1)^2 + (2*(x[8]-1)^2 + (u[3]^2+u[4]^2) - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))))
+    costs=( FunctionPlayerCost((g, x, u, t) -> (θ[1]*x[3]^2 + 2*x[4]^2 + (u[1]^2+u[2]^2))),
+            FunctionPlayerCost((g, x, u, t) -> (2*(x[1]-x[3])^2 + 2*((x[2]-x[4])^2 + (u[3]^2+u[4]^2)))))
     return costs
 end
+
 
 function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, nominal_solver=[], nominal_traj=[])	
     x0 = first(expert_traj.x)
@@ -76,12 +83,10 @@ function compare_grad(θ, equilibrium_type1, equilibrium_type2)
 end
 
 
-θ = [9.6]
-current_loss, _, _ = inverse_game_loss(θ, g, expert_traj2, x0, parameterized_cost, "FBNE")
-gradient1 = inverse_game_gradient(current_loss, θ, g, expert_traj1, x0, parameterized_cost, "FBNE")
-
-gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE", expert_traj2), θ)
-
+θ = [7.6]
+current_loss, _, _ = inverse_game_loss(θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
+gradient1 = inverse_game_gradient(current_loss, θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
+gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE_costate", expert_traj2), θ)
 
 
 
@@ -101,7 +106,8 @@ gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE", expert_traj2), θ)
 
 
 
-ForwardDiff.gradient(θ -> loss(θ, "FBNE", expert_traj2, true, false), [12.0; 3.0])
+
+ForwardDiff.gradient(θ -> loss(θ, "FBNE_costate", expert_traj2, true, false), [12.0])
 
 
 ForwardDiff.gradient(θ -> loss(θ, "OLNE", expert_traj1, true, false), [9.0; 3.0])
