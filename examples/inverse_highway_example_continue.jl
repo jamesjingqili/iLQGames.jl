@@ -1,39 +1,40 @@
 function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
                                         max_GD_iteration_num::Int, parameterized_cost, equilibrium_type)
-    α = 1.0
+    α = 2.0
     current_loss, current_traj, current_str, current_solver = loss(θ, equilibrium_type, expert_traj, false)
     θ_next = θ
     new_loss = 0.0
-    gradient = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
+    gradient_value = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
     # gradient = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
     for iter in 1:max_GD_iteration_num
-        θ_next = θ-α*gradient
+        θ_next = θ-α*gradient_value
+        @infiltrate
         new_loss, new_traj, new_str, new_solver = loss(θ_next, equilibrium_type, expert_traj, false)
         if new_loss < current_loss
             println("Inverse Game Line Search Step Size: ", α)
             @infiltrate
-            return θ_next, new_loss, gradient
+            return θ_next, new_loss, gradient_value
             break
         end
         α = α*0.5
         println("inverse game line search not well")
     end
-    return θ_next, new_loss, gradient
+    return θ_next, new_loss, gradient_value
 end
 
 
-max_GD_iteration_num = 20
+max_GD_iteration_num = 30
 
 
-θ = [13.0;]
+θ = [2.6; 3.0; 3.0]
 θ_dim = length(θ)
 sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
 sol[1] = θ
 loss_values = zeros(max_GD_iteration_num)
 gradient = [zeros(θ_dim) for iter in 1:max_GD_iteration_num]
 for iter in 1:max_GD_iteration_num
-    sol[iter+1], loss_values[iter], gradient[iter] = inverse_game_gradient_descent(sol[iter], g, expert_traj1, x0, 10, 
-                                                                            parameterized_cost, "OLNE_costate")
+    sol[iter+1], loss_values[iter], gradient[iter] = inverse_game_gradient_descent(sol[iter], g, expert_traj2, x0, 10, 
+                                                                            parameterized_cost, "FBNE_costate")
     println("Current solution: ", sol[iter+1])
     if loss_values[iter]<0.1
         break
