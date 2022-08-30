@@ -22,7 +22,8 @@ function inverse_game_loss(θ::Vector, g::GeneralGame, expert_traj::SystemTrajec
 end
 
 # get gradient
-function inverse_game_gradient(current_loss::Float64, θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, parameterized_cost, equilibrium_type)
+function inverse_game_gradient(current_loss::Float64, θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, 
+								x0::SVector, parameterized_cost, equilibrium_type)
 	num_parameters = length(θ)
 	gradient = zeros(num_parameters)
 	Δ = 0.01
@@ -37,7 +38,8 @@ end
 
 
 
-# function inverse_game_gradient_LQ(solver, traj, θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, parameterized_cost, equilibrium_type)
+# function inverse_game_gradient_LQ(solver, traj, θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
+#		parameterized_cost, equilibrium_type)
 # 	num_parameters = length(θ)
 # 	gradient = zeros(num_parameters)
 # 	lqg = lq_approximation(solver, g, traj)
@@ -46,7 +48,8 @@ end
 # end
 
 # line search
-function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, max_GD_iteration_num::Int, parameterized_cost, equilibrium_type)
+function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, max_GD_iteration_num::Int, 
+										parameterized_cost, equilibrium_type)
 	α = 1.0
 	current_loss, current_traj, current_str = inverse_game_loss(θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
 	θ_next = θ
@@ -71,8 +74,7 @@ end
 
 
 
-function inverse_game_update_belief(θ::Vector, g::GeneralGame,
-						expert_traj::SystemTrajectory, x0::SVector, 
+function inverse_game_update_belief(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
 						parameterized_cost, equilibrium_type1, equilibrium_type2)
 	current_cost = parameterized_cost(θ) # modify the cost vector
 	current_game = GeneralGame(g.h, g.uids, g.dyn, current_cost)
