@@ -27,7 +27,7 @@ player_inputs = (SVector(1,2), SVector(3,4))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE")
+solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
 x0 = SVector(0, 0, pi/2, 1.2,       1, 0, pi/2, 1)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
@@ -44,7 +44,7 @@ gif(anim1, "lane_merging_OL.gif", fps = 10)
 
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
+solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
 x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];

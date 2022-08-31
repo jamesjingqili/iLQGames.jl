@@ -8,17 +8,17 @@ include("inverse_game_solver.jl")
 # θ=[10.0; 3.0;]
 
 
-function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]-1)^2 + θ[2]*(x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> (  θ[3]*(x[5]-1)^2 + 2*(x[8]-1)^2 + u[3]^2 + u[4]^2 - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-    return costs
-end
-
 # function parameterized_cost(θ::Vector)
-#     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[3])^2 + θ[2]*(x[4])^2 + u[1]^2 + u[2]^2)),
-#              FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+#     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]-1)^2 + θ[2]*(2*(x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))),
+#              FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[5]-1)^2 + θ[4]*(2*(x[8]-1)^2 + u[3]^2 + u[4]^2 - 0.2*((x[1]-x[5])^2 + (x[2]-x[6])^2)))))
 #     return costs
 # end
+
+function parameterized_cost(θ::Vector)
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*x[3]^2 + θ[2]*(x[4]^2 + 0.5*u[1]^2 + 0.5*u[2]^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[1]-x[3])^2 + θ[4]*((x[2]-x[4])^2 + 0.5*u[3]^2 + 0.5*u[4]^2))))
+    return costs
+end
 
 
 function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
@@ -86,10 +86,10 @@ function compare_grad(θ, equilibrium_type1, equilibrium_type2)
 end
 
 
-θ = [3.6]
-current_loss, _, _ = inverse_game_loss(θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
-gradient1 = inverse_game_gradient(current_loss, θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
-gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE_costate", expert_traj2), θ)
+θ = [3.6;3.0;3.0;3.0]
+current_loss, _, _ = inverse_game_loss(θ, g, expert_traj2, x0, parameterized_cost, "FBNE")
+gradient1 = inverse_game_gradient(current_loss, θ, g, expert_traj2, x0, parameterized_cost, "FBNE")
+gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE", expert_traj2), θ)
 
 
 
