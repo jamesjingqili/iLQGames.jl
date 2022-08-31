@@ -79,44 +79,44 @@ function solve_lq_game_FBNE(g::LQGame)
 end
 
 
-function untyped_solve_lq_game_FBNE(g::LQGame)
-    nx = n_states(g)
-    nu = n_controls(g)
-    Z = [pc.Q for pc in last(player_costs(g))]
-    ζ = [pc.l for pc in last(player_costs(g))]
-    strategies = []
+# function untyped_solve_lq_game_FBNE(g::LQGame)
+#     nx = n_states(g)
+#     nu = n_controls(g)
+#     Z = [pc.Q for pc in last(player_costs(g))]
+#     ζ = [pc.l for pc in last(player_costs(g))]
+#     strategies = []
     
-    T = length(player_costs(g))
-    for kk in T:-1:1
-        S = zeros(nu, nu)
-        YP = zeros(nu, nx)
-        Yα = zeros(nu)
-        dyn = dynamics(g)[kk]
-        cost = player_costs(g)[kk]
-        A = dyn.A
-        B = dyn.B
-        # @infiltrate
-        for (ii, udxᵢ) in enumerate(uindex(g))
-            BᵢZᵢ = B[:, udxᵢ]' * Z[ii]
-            S[udxᵢ, :] = cost[ii].R[udxᵢ, :] + BᵢZᵢ*B
-            YP[udxᵢ, :] =  BᵢZᵢ*A
-            Yα[udxᵢ] =  B[:, udxᵢ]'*ζ[ii] + cost[ii].r[udxᵢ]
-        end
-        # Sinv = inv(S)
-        P = S\YP
-        α = S\Yα
-        F = A - B * P
-        β = -B * α
-        for ii in 1:n_players(g)
-            cᵢ= cost[ii]
-            PRᵢ = P' * cᵢ.R
-            ζ[ii] = F' * (ζ[ii] + Z[ii] * β) + cᵢ.l + PRᵢ * α - P' * cᵢ.r
-            Z[ii] = F' * Z[ii] * F + cᵢ.Q + PRᵢ * P
-        end
-        push!(strategies, AffineStrategy(SMatrix{nu,nx}(P), SVector{nu}(α)))
-    end
-    return strategies
-end
+#     T = length(player_costs(g))
+#     for kk in T:-1:1
+#         S = zeros(nu, nu)
+#         YP = zeros(nu, nx)
+#         Yα = zeros(nu)
+#         dyn = dynamics(g)[kk]
+#         cost = player_costs(g)[kk]
+#         A = dyn.A
+#         B = dyn.B
+#         # @infiltrate
+#         for (ii, udxᵢ) in enumerate(uindex(g))
+#             BᵢZᵢ = B[:, udxᵢ]' * Z[ii]
+#             S[udxᵢ, :] = cost[ii].R[udxᵢ, :] + BᵢZᵢ*B
+#             YP[udxᵢ, :] =  BᵢZᵢ*A
+#             Yα[udxᵢ] =  B[:, udxᵢ]'*ζ[ii] + cost[ii].r[udxᵢ]
+#         end
+#         # Sinv = inv(S)
+#         P = S\YP
+#         α = S\Yα
+#         F = A - B * P
+#         β = -B * α
+#         for ii in 1:n_players(g)
+#             cᵢ= cost[ii]
+#             PRᵢ = P' * cᵢ.R
+#             ζ[ii] = F' * (ζ[ii] + Z[ii] * β) + cᵢ.l + PRᵢ * α - P' * cᵢ.r
+#             Z[ii] = F' * Z[ii] * F + cᵢ.Q + PRᵢ * P
+#         end
+#         push!(strategies, AffineStrategy(SMatrix{nu,nx}(P), SVector{nu}(α)))
+#     end
+#     return strategies
+# end
 
 function solve_lq_game_OLNE(g::LQGame)
     nx, nu, N = n_states(g), n_controls(g), n_players(g)

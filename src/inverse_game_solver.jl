@@ -26,7 +26,7 @@ function inverse_game_gradient(current_loss::Float64, θ::Vector, g::GeneralGame
 								x0::SVector, parameterized_cost, equilibrium_type)
 	num_parameters = length(θ)
 	gradient = zeros(num_parameters)
-	Δ = 0.01
+	Δ = 0.001
 	for ii in 1:num_parameters
 		θ_new = copy(θ)
 		θ_new[ii] += Δ
@@ -88,12 +88,15 @@ function inverse_game_update_belief(θ::Vector, g::GeneralGame, expert_traj::Sys
 	x1_list, u1_list, x2_list, u2_list, expert_traj_x, expert_traj_u = [], [], [], [], [], []
 	for ii in 1:g.h
 		for jj in 1:length(x0)
+			# @infiltrate
 			push!(x1_list, trajectory1.x[ii][jj])
-			push!(u1_list, trajectory1.u[ii][jj])
 			push!(x2_list, trajectory2.x[ii][jj])
-			push!(u2_list, trajectory2.u[ii][jj])
 			push!(expert_traj_x, expert_traj.x[ii][jj])
-			push!(expert_traj_u, expert_traj.u[ii][jj])
+			if jj <= g.uids[end][end]
+				push!(u1_list, trajectory1.u[ii][jj])
+				push!(u2_list, trajectory2.u[ii][jj])
+				push!(expert_traj_u, expert_traj.u[ii][jj])
+			end
 		end
 	end
 	# @infiltrate
