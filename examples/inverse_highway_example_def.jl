@@ -86,11 +86,11 @@ function compare_grad(θ, equilibrium_type1, equilibrium_type2)
 end
 
 
-θ = [3.6;3.0;3.0;3.0]
-current_loss, _, _ = inverse_game_loss(θ, g, expert_traj2, x0, parameterized_cost, "FBNE")
-gradient1 = inverse_game_gradient(current_loss, θ, g, expert_traj2, x0, parameterized_cost, "FBNE")
-gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE", expert_traj2), θ)
-
+θ = [5.0;3.0;3.0;3.0]
+current_loss, _, _ = inverse_game_loss(θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
+gradient1 = inverse_game_gradient(current_loss, θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
+gradient2 = ForwardDiff.gradient(x -> loss(x, "FBNE_costate", expert_traj2), θ)
+gradient3 = inverse_game_gradient_for_debug(current_loss, θ, g, expert_traj2, x0, parameterized_cost, "FBNE_costate")
 
 
 
@@ -117,9 +117,9 @@ ForwardDiff.gradient(θ -> loss(θ, "OLNE", expert_traj1, true, false), [9.0; 3.
 
 
 result = Optim.optimize(
-        θ -> loss(θ, "FBNE", expert_traj2),
-        [8.0];
-        method = Optim.AcceleratedGradientDescent(),
+        θ -> loss(θ, "FBNE", expert_traj2, true),
+        [8.0; 3.0;3.0;3.0];
+        method = Optim.BFGS(),
         autodiff = :forward,
         extended_trace = true,
         iterations = 10,
