@@ -33,7 +33,7 @@ function inverse_game_gradient(current_loss::Float64, θ::Vector, g::GeneralGame
 		θ_new = copy(θ)
 		θ_new[ii] += Δ
 		new_loss, tmp_traj, tmp_strategy = inverse_game_loss(θ_new, g, expert_traj, x0, parameterized_cost, equilibrium_type)
-		@infiltrate
+		# @infiltrate
 		gradient[ii] = (new_loss-current_loss)/Δ
 	end
 	return gradient
@@ -78,7 +78,7 @@ function inverse_game_loss_for_debug(old_θ,θ::Vector, g::GeneralGame, expert_t
         strategies = Differentiable_Solvers.solve_lq_game_FBNE(lqg)        
         # iLQGames.solve_lq_game_FBNE_with_costate!(strategies, lqg, x0)
         new_trajectory = Differentiable_Solvers.trajectory(x0, g, reverse(strategies), trajectory)
-        @infiltrate
+        # @infiltrate
         # iLQGames.trajectory!(new_trajectory, g.dyn, strategies, trajectory, x0)
         println("good too!")
     else
