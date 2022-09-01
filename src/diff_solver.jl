@@ -79,18 +79,19 @@ function solve_lq_game_FBNE(g::LQGame)
 end
 
 
-# function untyped_solve_lq_game_FBNE(g::LQGame)
+# function solve_lq_game_FBNE(g::LQGame)
 #     nx = n_states(g)
 #     nu = n_controls(g)
-#     Z = [pc.Q for pc in last(player_costs(g))]
-#     ζ = [pc.l for pc in last(player_costs(g))]
+#     @infiltrate
+#     Z = [ForwardDiff.Dual.(pc.Q) for pc in last(player_costs(g))]
+#     ζ = [ForwardDiff.Dual.(pc.l) for pc in last(player_costs(g))]
 #     strategies = []
     
 #     T = length(player_costs(g))
 #     for kk in T:-1:1
-#         S = zeros(nu, nu)
-#         YP = zeros(nu, nx)
-#         Yα = zeros(nu)
+#         S = zeros(ForwardDiff.Dual, nu, nu)
+#         YP = zeros(ForwardDiff.Dual, nu, nx)
+#         Yα = zeros(ForwardDiff.Dual, nu)
 #         dyn = dynamics(g)[kk]
 #         cost = player_costs(g)[kk]
 #         A = dyn.A
@@ -103,6 +104,7 @@ end
 #             Yα[udxᵢ] =  B[:, udxᵢ]'*ζ[ii] + cost[ii].r[udxᵢ]
 #         end
 #         # Sinv = inv(S)
+#         # @infiltrate
 #         P = S\YP
 #         α = S\Yα
 #         F = A - B * P
@@ -115,7 +117,7 @@ end
 #         end
 #         push!(strategies, AffineStrategy(SMatrix{nu,nx}(P), SVector{nu}(α)))
 #     end
-#     return strategies
+#     return reverse(strategies)
 # end
 
 function solve_lq_game_OLNE(g::LQGame)
