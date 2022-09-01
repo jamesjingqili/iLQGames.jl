@@ -40,7 +40,7 @@ function solve_lq_game_FBNE(g::LQGame)
     full_xrange = StaticArrays.SVector{nx}(1:nx)
     
     # working backwards in time to solve the dynamic program
-    map(h:-1:1) do kk
+    map(h:-1:1) do kk 
         dyn = dynamics(g)[kk]
         cost = costs[kk]
         # convenience shorthands for the relevant quantities
@@ -75,7 +75,7 @@ function solve_lq_game_FBNE(g::LQGame)
         end
 
         AffineStrategy(P, α)
-    end
+    end |> reverse
 end
 
 
@@ -154,7 +154,7 @@ function solve_lq_game_OLNE(g::LQGame)
         end
         push!(strategies, AffineStrategy(SMatrix{nu,nx}(-P), SVector{nu}(-α)))
     end
-    return strategies
+    return reverse(strategies)
 end
 
 
