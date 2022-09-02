@@ -221,21 +221,74 @@ gif(anim1_test, "test_noisy_highway.gif", fps = 10)
 
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# This doesn't work well.
-# Probably, you can define a new loss function relaxing the information pattern, by determining it online.
-
-result = Optim.optimize(
-        θ -> loss(θ, "FBNE", expert_traj2, true),
-        [8.0; 3.0;3.0;3.0];
-        method = Optim.BFGS(),
-        autodiff = :forward,
-        extended_trace = true,
-        iterations = 10,
-        store_trace = true,
-        x_tol = 1e-3,
-    )
+# max_GD_iteration_num = 40
 
 
+function single_experiment(x0, θ, expert_traj, g, max_GD_iteration_num, equilibrium_type=[], Bayesian_update=false)
+    θ_dim = length(θ)
+    sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
+    sol[1] = θ
+    loss_values = zeros(max_GD_iteration_num+1)
+    loss_values[1],_,_ = inverse_game_loss(sol[1], g, expert_traj, x0, parameterized_cost, equilibrium_type)
+    gradient = [zeros(θ_dim) for iter in 1:max_GD_iteration_num]
+    equilibrium_type_list = ["" for iter in 1:max_GD_iteration_num]
+    converged = false
+    for iter in 1:max_GD_iteration_num
+        sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], g, expert_traj, x0, 10, 
+                                                                                parameterized_cost, equilibrium_type, Bayesian_update)
+        println("Current solution: ", sol[iter+1])
+        if loss_values[iter+1]<0.1
+            converged = true
+            break
+        end
+    end
 
+    return converged, sol, loss_values, gradient, equilibrium_type_list
+end
+
+function test_experiments(g, θ, x0_set, expert_traj_set, parameterized_cost, max_GD_iteration_num, Bayesian_update=true)
+    # In the returned table, the rows coresponding to FB, OL and Bayesian
+    n_data = length(x0_set)
+    sol_table  = [[[] for jj in 1:n_data] for ii in 1:3]
+    loss_table = [[[] for jj in 1:n_data] for ii in 1:3]
+    grad_table = [[[] for jj in 1:n_data] for ii in 1:3]
+    equi_table = [[[] for jj in 1:n_data] for ii in 1:3]
+    comp_time_table = [[[] for jj in 1:n_data] for ii in 1:3]
+    conv_table = [[[] for jj in 1:n_data] for ii in 1:3] # converged_table
+    for iter in 1:n_ndata
+        x0 = x0_set[iter]
+        expert_traj = expert_traj_set[iter]
+        # FB
+        conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter], comp_time_table[1][iter] = single_experiment(x0,θ,expert_traj,g,"FBNE_costate", false)
+        # OL
+        conv_table[2][iter], sol_table[2][iter], loss_table[2][iter], grad_table[2][iter], equi_table[2][iter], comp_time_table[2][iter] = single_experiment(x0,θ,expert_traj,g,"OLNE_costate", false)
+        # Bayesian
+        conv_table[3][iter], sol_table[3][iter], loss_table[3][iter], grad_table[3][iter], equi_table[3][iter], comp_time_table[3][iter] = single_experiment(x0,θ,expert_traj,g,"FBNE_costate", true)
+    end
+
+    return sol_table, loss_table, gradient_table, equilibrium_table, computation_time_table
+end
+
+
+
+
+# test robustness to observation noise
+
+
+num_test = 20
+sampled_initial_states = [x0+[0.1;0.1;0.1;0.1; 0.1;0.1;0.1;0.1].*rand(Normal(0,1),nx) for ii in 1:num_test]
+recorded_loss
+
+for item in 1:num_test
+
+
+end
+
+# generalization to unseen initial state
+
+
+
+
+# average computation time: FB, OL, Joint
 
 

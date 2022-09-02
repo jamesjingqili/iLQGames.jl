@@ -173,7 +173,7 @@ function OL_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::Si
         if current_loss < last_KKT_residual
             current_strategy = last_strategy + α*Δ_strategy
             last_KKT_residual = copy(current_loss)
-            println("KKT residual is ",last_KKT_residual)
+            # println("KKT residual is ",last_KKT_residual)
             # println("Line Search finished!")
             return true, current_strategy, current_op, last_KKT_residual
             # println("α is ", α)

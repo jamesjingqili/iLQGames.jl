@@ -86,9 +86,9 @@ function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified
 
         lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
         if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-            traj = Differentiable_Solvers.trajectory(x0, game, reverse(Differentiable_Solvers.solve_lq_game_OLNE(lqg)), nominal_traj)
+            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
         elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-            traj = Differentiable_Solvers.trajectory(x0, game, reverse(Differentiable_Solvers.solve_lq_game_FBNE(lqg)), nominal_traj)
+            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
         else
             @warn "equilibrium_type is wrong!"
         end
