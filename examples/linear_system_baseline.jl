@@ -11,6 +11,7 @@ using LinearAlgebra
 using Distributed
 include("diff_solver.jl")
 include("inverse_game_solver.jl")
+include("experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 # parametes: number of states, number of inputs, sampling time, horizon
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
@@ -66,70 +67,7 @@ function parameterized_cost(θ::Vector)
     return costs
 end
 
-
-function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
-                nominal_solver=[], nominal_traj=[]) 
-    x0 = first(expert_traj.x)
-    if gradient_mode == false
-        nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
-        nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)
-        nominal_converged, nominal_traj, nominal_strategies = solve(nominal_game, nominal_solver, x0)
-        loss_value = norm(nominal_traj.x - expert_traj.x)^2 + norm(nominal_traj.u-expert_traj.u)^2
-        # @infiltrate
-        return loss_value, nominal_traj, nominal_strategies, nominal_solver
-    else
-        if specified_solver_and_traj == false
-            nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
-            nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)
-            nominal_converged, nominal_traj, nominal_strategies = solve(nominal_game, nominal_solver, x0)
-        end
-        costs = parameterized_cost(θ)
-        game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-
-        lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
-        if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
-        elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
-        else
-            @warn "equilibrium_type is wrong!"
-        end
-        loss_value = norm(traj.x - expert_traj.x)^2 + norm(traj.u - expert_traj.u)^2
-        return loss_value
-    end
-end
-
 #-----------------------------------------------------------------------------------------------------------------------------------
-
-function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
-                                        max_GD_iteration_num::Int, parameterized_cost, equilibrium_type=[], Bayesian_belief_update=false, 
-                                        specify_current_loss_and_solver=false, current_loss=[], current_traj=[], current_solver=[])
-    α, θ_next, new_loss, new_traj, new_solver = 1.0, θ, 0.0, zero(SystemTrajectory, g), current_solver
-    if Bayesian_belief_update==true
-        equilibrium_type = inverse_game_update_belief(θ, g, expert_traj, x0, parameterized_cost, "FBNE_costate", "OLNE_costate")
-    end
-    if specify_current_loss_and_solver == false
-        current_loss, current_traj, current_str, current_solver = loss(θ, equilibrium_type, expert_traj, false)
-    end
-    # gradient_value = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
-    gradient_value = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
-    for iter in 1:max_GD_iteration_num
-        θ_next = θ-α*gradient_value
-        # while minimum(θ_next)<=-0.1
-        #     α = α*0.5^2
-        #     θ_next = θ-α*gradient_value
-        # end
-        new_loss, new_traj, new_str, new_solver = loss(θ_next, equilibrium_type, expert_traj, false)
-        if new_loss < current_loss
-            println("Inverse Game Line Search Step Size: ", α)
-            return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
-            break
-        end
-        α = α*0.5
-        println("inverse game line search not well")
-    end
-    return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
-end
 
 # max_GD_iteration_num =200
 
@@ -156,111 +94,28 @@ end
 #----------------------------------------------------------------------------------------------------------------------------------
 # max_GD_iteration_num = 40
 
+θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
-function single_experiment(x0, θ, expert_traj, g, max_GD_iteration_num, equilibrium_type=[], Bayesian_update=false)
-    θ_dim = length(θ)
-    sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
-    sol[1] = θ
-    loss_values = zeros(max_GD_iteration_num+1)
-    loss_values[1],_,_ = inverse_game_loss(sol[1], g, expert_traj, x0, parameterized_cost, equilibrium_type)
-    gradient = [zeros(θ_dim) for iter in 1:max_GD_iteration_num]
-    equilibrium_type_list = ["" for iter in 1:max_GD_iteration_num]
-    converged = false
-    for iter in 1:max_GD_iteration_num
-        sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], g, expert_traj, x0, 10, 
-                                                                                parameterized_cost, equilibrium_type, Bayesian_update)
-        println("iteration: ", iter)
-        println("current_loss: ", loss_values[iter+1])
-        println("equilibrium_type: ", equilibrium_type_list[iter])
-        println("Current solution: ", sol[iter+1])
-        if loss_values[iter+1]<0.1
-            converged = true
-            break
-        end
-    end
-    return converged, sol, loss_values, gradient, equilibrium_type_list
-end
+θ₀ = ones(8)
 
-function test_experiments(g, θ, x0_set, expert_traj_set, parameterized_cost, max_GD_iteration_num, Bayesian_update=true)
-    # In the returned table, the rows coresponding to FB, OL and Bayesian
-    n_data = length(x0_set)
-    sol_table  = [[[] for jj in 1:n_data] for ii in 1:3]
-    loss_table = [[[] for jj in 1:n_data] for ii in 1:3]
-    grad_table = [[[] for jj in 1:n_data] for ii in 1:3]
-    equi_table = [[[] for jj in 1:n_data] for ii in 1:3]
-    comp_time_table = [[[] for jj in 1:n_data] for ii in 1:3]
-    conv_table = [[false for jj in 1:n_data] for ii in 1:3] # converged_table
-    for iter in 1:n_data
-        x0 = x0_set[iter]
-        expert_traj = expert_traj_set[iter]
-        # FB
-        conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter] = single_experiment(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", false)
-        # OL
-        conv_table[2][iter], sol_table[2][iter], loss_table[2][iter], grad_table[2][iter], equi_table[2][iter] = single_experiment(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,"OLNE_costate", false)
-        # Bayesian
-        conv_table[3][iter], sol_table[3][iter], loss_table[3][iter], grad_table[3][iter], equi_table[3][iter] = single_experiment(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
-    end
-    return conv_table, sol_table, loss_table, grad_table, equi_table, comp_time_table
-end
+x0_set = [x0+0.1*rand(Normal(0,1),4) for ii in 1:2]
+c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
+
+run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, parameterized_cost, 50)
 
 
-function generalization_loss(g, θ, x0_set, expert_traj, parameterized_cost, equilibrium_type)
-    num_samples = length(x0_set)
-    loss_list = zeros(length(x0_set))
-    traj_list = []
-    for iter in 1:length(x0_set)
-        loss_list[iter], tmp_traj, _, _ = loss(θ, equilibrium_type, expert_traj, false)
-        push!(traj_list, tmp_traj) 
-    end
-    return loss_list, traj_list
-end
-
-
-function generate_traj(θ, x0_set, g, parameterized_cost, equilibrium_type_list )
-    n_data = length(x0_set)
-    conv = [false for ii in 1:n_data]
-    expert_traj_list = [zero(SystemTrajectory, g) for ii in 1:n_data]
-
-    @distributed for item in 1:n_data
-        if rand(1)[1]>0.5
-            equilibrium_type = equilibrium_type_list[1]
-        else
-            equilibrium_type = equilibrium_type_list[2]
-        end
-        solver = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)
-        conv[item], tmp, _ = solve(g, solver, x0_set[item])
-        for t in 1:g.h
-            expert_traj_list[item].x[t] = tmp.x[t]
-            expert_traj_list[item].u[t] = tmp.u[t]
-        end
-    end
-    return conv, expert_traj_list
-end
-
-
-
-x0_set = [x0+0.1*rand(Normal(0,1),4) for ii in 1:3]
-
-
-
-θ₀ = 2*ones(8)
 conv, rew, loss_lists, grad, equi, _ = test_experiments(g, θ₀, [x0], [expert_traj1], parameterized_cost,200)
 iterations_FB = sum(equi[1][1][ii]!="" for ii in 1:length(equi[1][1]))
 iterations_OL = sum(equi[2][1][ii]!="" for ii in 1:length(equi[2][1]))
 iterations_BA = sum(equi[3][1][ii]!="" for ii in 1:length(equi[3][1]))
 
 
-generalization_loss(c)
 
 # 1. test robustness to observation noise
 #  X: 
-# Y1: state prediction loss.
-# Y2: generalization loss.    
+# Y1: state prediction loss. Code: loss(θ, equilibrium_type, expert_traj, false)
+# Y2: generalization loss.   Code: generalization_loss()
 
-θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 num_test = 20
 sampled_initial_states = [x0+[0.1;0.1;0.1;0.1; 0.1;0.1;0.1;0.1].*rand(Normal(0,1),nx) for ii in 1:num_test]
