@@ -224,7 +224,7 @@ function generate_traj(θ, x0_set, g, parameterized_cost, equilibrium_type_list 
     conv = [false for ii in 1:n_data]
     expert_traj_list = [zero(SystemTrajectory, g) for ii in 1:n_data]
 
-    for item in 1:n_data
+    @distributed for item in 1:n_data
         if rand(1)[1]>0.5
             equilibrium_type = equilibrium_type_list[1]
         else
