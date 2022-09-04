@@ -158,6 +158,21 @@ function generate_traj(g, θ, x0_set, parameterized_cost, equilibrium_type_list 
     return conv, expert_traj_list, expert_equi_list
 end
 
+function generate_noisy_observation(nx, nu, g, expert_traj, noise_level, number_of_perturbed_traj_needed)
+    # nx is the dimension of the states
+    # nu is the dimension of the actions
+    # g is the game
+    # g.h represents the horizon
+    perturbed_trajectories_list = [zero(SystemTrajectory, g) for ii in 1:number_of_perturbed_traj_needed]
+    for ii in 1:number_of_perturbed_traj_needed
+        for t in 1:g.h
+            perturbed_trajectories_list[ii].x[t] = expert_traj.x[t] + rand(Normal(0, noise_level), nx)
+            perturbed_trajectories_list[ii].u[t] = expert_traj.u[t] + rand(Normal(0, noise_level), nu)
+        end
+    end
+    return perturbed_trajectories_list
+end
+
 
 function iterations_taken_to_converge(equi_list)
     return sum(equi_list[ii]!="" for ii in 1:length(equi_list))
@@ -169,22 +184,22 @@ end
 
 
 # Get the best possible reward estimate
-function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, sol_table, loss_table, equi_list)
-    n_data = length(x0_set)
-    n_equi_types = length(all_equilibrium_types)
-    for index in 1:n_equi_types+1
-        for ii in 1:n_data
-            if minimum(loss_table[index][ii])==0.0
-                index_list[index][ii] = index[ii][iterations_taken_to_converge(equi_list)
-                θ_list[index][ii] = sol[index_list[index][ii]]
-            else
-                index_list[index][ii] = length(sol_table[index][ii])
-                θ_list[index][ii] = sol[index][ii][end]
-            end
-        end
-    end
-    return θ_list, index_list
-end
+# function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, sol_table, loss_table, equi_list)
+#     n_data = length(x0_set)
+#     n_equi_types = length(all_equilibrium_types)
+#     for index in 1:n_equi_types+1
+#         for ii in 1:n_data
+#             if minimum(loss_table[index][ii])==0.0
+#                 index_list[index][ii] = index[ii][iterations_taken_to_converge(equi_list)
+#                 θ_list[index][ii] = sol[index_list[index][ii]]
+#             else
+#                 index_list[index][ii] = length(sol_table[index][ii])
+#                 θ_list[index][ii] = sol[index][ii][end]
+#             end
+#         end
+#     end
+#     return θ_list, index_list
+# end
 
 
 # If the solution doesn't converge in run_experiments_with_baselines, then we can continue here

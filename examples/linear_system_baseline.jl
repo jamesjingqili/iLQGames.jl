@@ -72,8 +72,8 @@ end
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 
-GD_iter_num = 100
-n_data = 100
+GD_iter_num = 200
+n_data = 20
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 θ₀ = 2*ones(8)
