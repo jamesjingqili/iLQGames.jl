@@ -44,10 +44,10 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
     gradient_value = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
     for iter in 1:max_GD_iteration_num
         θ_next = θ-α*gradient_value
-        # while minimum(θ_next)<=-0.1
-        #     α = α*0.5^2
-        #     θ_next = θ-α*gradient_value
-        # end
+        while minimum(θ_next)<=0.0
+            α = α*0.5^2
+            θ_next = θ-α*gradient_value
+        end
         new_loss, new_traj, new_str, new_solver = loss(θ_next, equilibrium_type, expert_traj, false)
         if new_loss < current_loss
             println("Inverse Game Line Search Step Size: ", α)
@@ -99,7 +99,7 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
     grad_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     equi_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     comp_time_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types] # converged_table
+    conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
     for iter in 1:n_data
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
@@ -107,13 +107,11 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
                                                                         θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
         for index in 1:n_equi_types
             conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,
-                                                                        all_equilibrium_types[index], false)
+                                                                        θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false)
         end
         end
-    @infiltrate
+        
     return conv_table, sol_table, loss_table, grad_table, equi_table, comp_time_table
-    # @infiltrate
 end
 
 
@@ -156,4 +154,8 @@ function generate_traj(g, θ, x0_set, parameterized_cost, equilibrium_type_list 
         end
     end
     return conv, expert_traj_list, expert_equi_list
+end
+
+function iterations_taken_to_converge(equi_list)
+    return sum(equi_list[ii]!="" for ii in 1:length(equi_list))
 end

@@ -9,9 +9,9 @@ using Infiltrator
 using Optim
 using LinearAlgebra
 using Distributed
-include("diff_solver.jl")
-include("inverse_game_solver.jl")
-include("experiment_utils.jl") # NOTICE!! Many functions are defined there.
+include("../src/diff_solver.jl")
+include("../src/inverse_game_solver.jl")
+include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 # parametes: number of states, number of inputs, sampling time, horizon
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
@@ -67,52 +67,27 @@ function parameterized_cost(θ::Vector)
     return costs
 end
 
-#-----------------------------------------------------------------------------------------------------------------------------------
-
-# max_GD_iteration_num =200
-
-# # θ = [9.0; 1.0; 2.0;1.0]
-# θ = ones(8)
-# θ_dim = length(θ)
-# sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
-# sol[1] = θ
-# loss_values = zeros(max_GD_iteration_num+1)
-# loss_values[1],_,_ = inverse_game_loss(sol[1], g, expert_traj1, x0, parameterized_cost, "OLNE_costate")
-# gradient = [zeros(θ_dim) for iter in 1:max_GD_iteration_num]
-# equilibrium_type = ["" for iter in 1:max_GD_iteration_num]
-# traj_list = [zero(SystemTrajectory, g) for iter in 1:max_GD_iteration_num]
-# solver_list = [[] for iter in 1:max_GD_iteration_num]
-# for iter in 1:max_GD_iteration_num
-#     sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type[iter], _, _ = inverse_game_gradient_descent(sol[iter], 
-#                                             g, expert_traj1, x0, 10, parameterized_cost, [],true)
-#     println("Current solution: ", sol[iter+1])
-#     if loss_values[iter+1]<0.1
-#         break
-#     end
-# end
-
 #----------------------------------------------------------------------------------------------------------------------------------
-# max_GD_iteration_num = 40
+GD_iter_num = 200
 
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
-θ₀ = ones(8)
-
+θ₀ = 2*ones(8)
+# 
 x0_set = [x0+0.1*rand(Normal(0,1),4) for ii in 1:2]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
-run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, parameterized_cost, 50)
+conv_table, sol_table, loss_table, grad_table, equi_table, comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
+                                                                                                            parameterized_cost, GD_iter_num)
 
 
-conv, rew, loss_lists, grad, equi, _ = test_experiments(g, θ₀, [x0], [expert_traj1], parameterized_cost,200)
-iterations_FB = sum(equi[1][1][ii]!="" for ii in 1:length(equi[1][1]))
-iterations_OL = sum(equi[2][1][ii]!="" for ii in 1:length(equi[2][1]))
-iterations_BA = sum(equi[3][1][ii]!="" for ii in 1:length(equi[3][1]))
 
+
+iterations_BA,iterations_FB,iteration_OL=iterations_taken_to_converge(equi[1][1]),iterations_taken_to_converge(equi[2][1]),iterations_taken_to_converge(equi[3][1])
 
 
 # 1. test robustness to observation noise
-#  X: 
+#  X: number of cases
 # Y1: state prediction loss. Code: loss(θ, equilibrium_type, expert_traj, false)
 # Y2: generalization loss.   Code: generalization_loss()
 
