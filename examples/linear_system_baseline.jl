@@ -68,16 +68,20 @@ function parameterized_cost(θ::Vector)
 end
 
 #----------------------------------------------------------------------------------------------------------------------------------
-GD_iter_num = 200
 
+include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+
+
+GD_iter_num = 2
+n_data = 2
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 θ₀ = 2*ones(8)
 # 
-x0_set = [x0+0.1*rand(Normal(0,1),4) for ii in 1:2]
+x0_set = [x0+0.1*rand(Normal(0,1),4) for ii in 1:n_data]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
-conv_table, sol_table, loss_table, grad_table, equi_table, comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
+conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
                                                                                                             parameterized_cost, GD_iter_num)
 
 
@@ -85,7 +89,7 @@ conv_table, sol_table, loss_table, grad_table, equi_table, comp_time_table=run_e
 
 iterations_BA,iterations_FB,iteration_OL=iterations_taken_to_converge(equi[1][1]),iterations_taken_to_converge(equi[2][1]),iterations_taken_to_converge(equi[3][1])
 
-
+"Experiment 1: Histogram"
 # 1. test robustness to observation noise
 #  X: number of cases
 # Y1: state prediction loss. Code: loss(θ, equilibrium_type, expert_traj, false)
@@ -100,6 +104,11 @@ for item in 1:num_test
 
 
 end
+
+
+"Experiment 2: "
+
+
 
 # generalization to unseen initial state
 

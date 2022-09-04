@@ -44,7 +44,7 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
     gradient_value = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
     for iter in 1:max_GD_iteration_num
         θ_next = θ-α*gradient_value
-        while minimum(θ_next)<=0.0
+        while minimum(θ_next)<=-0.1
             α = α*0.5^2
             θ_next = θ-α*gradient_value
         end
@@ -87,6 +87,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
     return converged, sol, loss_values, gradient, equilibrium_type_list
 end
 
+
 # θ represents the initialization in gradient descent
 function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, parameterized_cost, 
                                                 max_GD_iteration_num, Bayesian_update=true,
@@ -95,23 +96,25 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
     n_data = length(x0_set)
     n_equi_types = length(all_equilibrium_types)
     sol_table  = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     grad_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     equi_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     comp_time_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
-    for iter in 1:n_data
+    loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+    total_iter_table = zeros(1+n_equi_types, n_data)
+    @distributed for iter in 1:n_data
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
+        total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
         for index in 1:n_equi_types
             conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false)
+            total_iter_table[1+index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
         end
-        end
-        
-    return conv_table, sol_table, loss_table, grad_table, equi_table, comp_time_table
+    end
+    return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
 end
 
 
