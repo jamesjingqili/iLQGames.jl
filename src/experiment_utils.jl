@@ -168,23 +168,23 @@ end
 
 
 
-# Get the best possible reward estimate
-function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, sol_table, loss_table, equi_list)
-    n_data = length(x0_set)
-    n_equi_types = length(all_equilibrium_types)
-    for index in 1:n_equi_types+1
-        for ii in 1:n_data
-            if minimum(loss_table[index][ii])==0.0
-                index_list[index][ii] = index[ii][iterations_taken_to_converge(equi_list)
-                θ_list[index][ii] = sol[index_list[index][ii]]
-            else
-                index_list[index][ii] = length(sol_table[index][ii])
-                θ_list[index][ii] = sol[index][ii][end]
-            end
-        end
-    end
-    return θ_list, index_list
-end
+# # Get the best possible reward estimate
+# function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, sol_table, loss_table, equi_list)
+#     n_data = length(x0_set)
+#     n_equi_types = length(all_equilibrium_types)
+#     for index in 1:n_equi_types+1
+#         for ii in 1:n_data
+#             if minimum(loss_table[index][ii])==0.0
+#                 index_list[index][ii] = index[ii][iterations_taken_to_converge(equi_list)
+#                 θ_list[index][ii] = sol[index_list[index][ii]]
+#             else
+#                 index_list[index][ii] = length(sol_table[index][ii])
+#                 θ_list[index][ii] = sol[index][ii][end]
+#             end
+#         end
+#     end
+#     return θ_list, index_list
+# end
 
 
 # If the solution doesn't converge in run_experiments_with_baselines, then we can continue here

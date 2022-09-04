@@ -11,7 +11,7 @@ using LinearAlgebra
 using Distributed
 include("../src/diff_solver.jl")
 include("../src/inverse_game_solver.jl")
-include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+# include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 # parametes: number of states, number of inputs, sampling time, horizon
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
