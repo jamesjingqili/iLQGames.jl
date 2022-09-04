@@ -89,12 +89,11 @@ conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_
 
 iterations_BA,iterations_FB,iteration_OL=iterations_taken_to_converge(equi[1][1]),iterations_taken_to_converge(equi[2][1]),iterations_taken_to_converge(equi[3][1])
 
-"Experiment 1: Histogram"
-# 1. test robustness to observation noise
+"Experiment 1: Without noitse. Histogram"
 #  X: number of cases
 # Y1: state prediction loss. Code: loss(θ, equilibrium_type, expert_traj, false)
 # Y2: generalization loss.   Code: generalization_loss()
-
+# Y3: computation time/GD iterations taken to converge.
 
 num_test = 20
 sampled_initial_states = [x0+[0.1;0.1;0.1;0.1; 0.1;0.1;0.1;0.1].*rand(Normal(0,1),nx) for ii in 1:num_test]
@@ -102,11 +101,13 @@ recorded_loss
 
 for item in 1:num_test
 
-
 end
 
 
-"Experiment 2: "
+"Experiment 2: With noise. Scatter plot"
+# X: noise variance
+# Y1: state prediction loss, mean and variance
+# Y2: generalization loss, mean and variance
 
 
 
