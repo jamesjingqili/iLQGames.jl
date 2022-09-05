@@ -96,7 +96,8 @@ iterations_BA,iterations_FB,iteration_OL=iterations_taken_to_converge(equi[1][1]
 
 jldsave("LQ_data_$(Dates.now())"; nx, nu, ΔT, g,dynamics, costs, player_inputs, solver1, x0, c1, expert_traj1, strategies1, 
     solver2, c2, expert_traj2, strategies2, parameterized_cost, GD_iter_num, n_data, θ_true, θ₀, 
-    c_expert, expert_traj_list, expert_equi_list, conv_table, sol_table, loss_table, grad_table, equi_table, iter_table, comp_time_table)
+    c_expert, expert_traj_list, expert_equi_list, conv_table, sol_table, loss_table, grad_table, 
+    equi_table, iter_table, comp_time_table, θ_list, index_list, optim_loss_list)
 
 "Experiment 1: Without noitse. Histogram"
 #  X: number of cases
