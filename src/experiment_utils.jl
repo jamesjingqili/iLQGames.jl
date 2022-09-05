@@ -98,19 +98,23 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
     sol_table  = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     grad_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     equi_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    comp_time_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+    comp_time_table = [[0.0 for jj in 1:n_data] for ii in 1:n_equi_types+1]
     conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
     loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     total_iter_table = zeros(1+n_equi_types, n_data)
     @distributed for iter in 1:n_data
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
+        time_stamp = time()
         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
+        comp_time_table[1][iter] = time() - time_stamp
         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
         for index in 1:n_equi_types
+            time_stamp = time()
             conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false)
+            comp_time_table[1+index][iter] = time() - time_stamp
             total_iter_table[1+index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
         end
     end
@@ -184,22 +188,28 @@ end
 
 
 # Get the best possible reward estimate
-# function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, sol_table, loss_table, equi_list)
-#     n_data = length(x0_set)
-#     n_equi_types = length(all_equilibrium_types)
-#     for index in 1:n_equi_types+1
-#         for ii in 1:n_data
-#             if minimum(loss_table[index][ii])==0.0
-#                 index_list[index][ii] = index[ii][iterations_taken_to_converge(equi_list)
-#                 θ_list[index][ii] = sol[index_list[index][ii]]
-#             else
-#                 index_list[index][ii] = length(sol_table[index][ii])
-#                 θ_list[index][ii] = sol[index][ii][end]
-#             end
-#         end
-#     end
-#     return θ_list, index_list
-# end
+function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, sol_table, loss_table, equi_list)
+    n_data = length(x0_set)
+    n_equi_types = length(all_equilibrium_types)
+    θ_list = [[[] for ii in 1:n_data] for index in 1:n_equi_types+1]
+    index_list = [[0 for ii in 1:n_data] for index in 1:n_equi_types+1]
+    optim_loss_list = [[0.0 for ii in 1:n_data] for index in 1:n_equi_types+1]
+    for index in 1:n_equi_types+1
+        for ii in 1:n_data
+            if minimum(loss_table[index][ii])==0.0
+                index_list[index][ii] = iterations_taken_to_converge(equi_list[index][ii])
+                θ_list[index][ii] = sol_table[index][ii][index_list[index][ii]]
+                optim_loss_list[index][ii] = loss_table[index][ii][index_list[index][ii]]
+            else
+                index_list[index][ii] = argmin(loss_table[index][ii])
+                θ_list[index][ii] = sol_table[index][ii][index_list[index][ii]]
+                optim_loss_list[index][ii] = loss_table[index][ii][index_list[index][ii]]
+            end
+        end
+    end
+    return θ_list, index_list, optim_loss_list
+end
+
 
 
 # If the solution doesn't converge in run_experiments_with_baselines, then we can continue here
