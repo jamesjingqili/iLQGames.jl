@@ -1,3 +1,5 @@
+using ProgressBars
+
 function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
                 nominal_solver=[], nominal_traj=[]) 
     x0 = first(expert_traj.x)
@@ -44,18 +46,18 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
     gradient_value = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
     for iter in 1:max_GD_iteration_num
         θ_next = θ-α*gradient_value
-        while minimum(θ_next)<=-0.1
-            α = α*0.5^2
-            θ_next = θ-α*gradient_value
-        end
+        # while minimum(θ_next)<=-0.1
+        #     α = α*0.5^2
+        #     θ_next = θ-α*gradient_value
+        # end
         new_loss, new_traj, new_str, new_solver = loss(θ_next, equilibrium_type, expert_traj, false)
         if new_loss < current_loss
-            println("Inverse Game Line Search Step Size: ", α)
+            # println("Inverse Game Line Search Step Size: ", α)
             return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
             break
         end
         α = α*0.5
-        println("inverse game line search not well")
+        # println("inverse game line search not well")
     end
     return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
 end
@@ -75,10 +77,10 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
                                                                                 g, expert_traj, x0, 10, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update)
-        println("iteration: ", iter)
-        println("current_loss: ", loss_values[iter+1])
-        println("equilibrium_type: ", equilibrium_type_list[iter])
-        println("Current solution: ", sol[iter+1])
+        # println("iteration: ", iter)
+        # println("current_loss: ", loss_values[iter+1])
+        # println("equilibrium_type: ", equilibrium_type_list[iter])
+        # println("Current solution: ", sol[iter+1])
         if loss_values[iter+1]<0.1
             converged = true
             break
@@ -103,19 +105,25 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
     loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     total_iter_table = zeros(1+n_equi_types, n_data)
     @distributed for iter in 1:n_data
+        println(iter)
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
-        time_stamp = time()
-        conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
-        comp_time_table[1][iter] = time() - time_stamp
-        total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
-        for index in 1:n_equi_types
-            time_stamp = time()
-            conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false)
-            comp_time_table[1+index][iter] = time() - time_stamp
-            total_iter_table[1+index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
+        # time_stamp = time()
+        # conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
+        #                                                                 θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
+        # comp_time_table[1][iter] = time() - time_stamp
+        # total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
+        for index in 1:n_equi_types+1
+            if index==1
+                using_Bayes=true
+            else
+                using_Bayes=false
+            end
+            time_stamp = time()            
+            conv_table[index][iter], sol_table[index][iter], loss_table[index][iter], grad_table[index][iter], equi_table[index][iter]=objective_inference(x0,
+                                                                        θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], using_Bayes)
+            comp_time_table[index][iter] = time() - time_stamp
+            total_iter_table[index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
         end
     end
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
@@ -181,9 +189,6 @@ end
 function iterations_taken_to_converge(equi_list)
     return sum(equi_list[ii]!="" for ii in 1:length(equi_list))
 end
-
-
-
 
 
 
