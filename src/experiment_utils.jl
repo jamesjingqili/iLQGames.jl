@@ -130,6 +130,44 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
 end
 
 
+# θ represents the initialization in gradient descent.
+# We do accelerated gradient descent
+# function run_experiments_with_baselines_accelerated_GD(g, θ, x0_set, expert_traj_list, parameterized_cost, 
+#                                                 max_GD_iteration_num, Bayesian_update=true,
+#                                                 all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
+#     # In the returned table, the rows coresponding to Bayesian, FB, OL
+#     n_data = length(x0_set)
+#     n_equi_types = length(all_equilibrium_types)
+#     sol_table  = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     grad_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     equi_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     comp_time_table = [[0.0 for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
+#     loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     total_iter_table = zeros(1+n_equi_types, n_data)
+#     @distributed for iter in 1:n_data
+#         println(iter)
+#         x0 = x0_set[iter]
+#         expert_traj = expert_traj_list[iter]
+#         for index in 1:n_equi_types+1
+#             if index==1
+#                 using_Bayes=true
+#             else
+#                 using_Bayes=false
+#             end
+#             time_stamp = time()            
+#             conv_table[index][iter], sol_table[index][iter], loss_table[index][iter], grad_table[index][iter], equi_table[index][iter]=objective_inference(x0,
+#                                                                         θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], using_Bayes)
+#             comp_time_table[index][iter] = time() - time_stamp
+#             total_iter_table[index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
+#         end
+#     end
+#     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
+# end
+
+
+
+
 # Given θ and equilibrium type, for each initial condition in x0_set, compute prediction loss
 function generalization_loss(g, θ, x0_set, expert_traj_list, parameterized_cost, equilibrium_type_list)
     num_samples = length(x0_set)
