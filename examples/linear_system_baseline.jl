@@ -73,8 +73,8 @@ end
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 
-GD_iter_num = 10
-n_data = 1
+GD_iter_num = 200
+n_data = 300
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 θ₀ = ones(8)
@@ -111,14 +111,16 @@ jldsave("LQ_data_$(Dates.now())"; nx, nu, ΔT, g,dynamics, costs, player_inputs,
 # Y3: computation time/GD iterations taken to converge.
 
 # (1) filter out the converged example here:
-
-time_list = [[0.0 for ii in 1:sum(conv_table[1])] for index in 1:3]
+num_converged = sum(conv_table[1].*conv_table[2].*conv_table[3])
+time_list = [[0.0 for ii in 1:num_converged] for index in 1:3]
+time_list_index = zeros(num_converged)
 jj = 1
 for ii in 1:n_data
-    if conv_table[1][ii] == 1
+    if conv_table[1][ii].*conv_table[2][ii].*conv_table[3][ii] == 1
         time_list[1][jj] = comp_time_table[1][ii]
         time_list[2][jj] = comp_time_table[2][ii]
         time_list[3][jj] = comp_time_table[3][ii]
+        time_list_index[jj] = ii
         jj = jj+1
     end
 end
