@@ -104,7 +104,7 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
     conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
     loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     total_iter_table = zeros(1+n_equi_types, n_data)
-    @distributed for iter in 1:n_data
+    for iter in 1:n_data
         println(iter)
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
@@ -123,7 +123,7 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
             conv_table[index][iter], sol_table[index][iter], loss_table[index][iter], grad_table[index][iter], equi_table[index][iter]=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], using_Bayes)
             comp_time_table[index][iter] = time() - time_stamp
-            total_iter_table[index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
+            total_iter_table[index,iter] = iterations_taken_to_converge(equi_table[index][iter])
         end
     end
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table

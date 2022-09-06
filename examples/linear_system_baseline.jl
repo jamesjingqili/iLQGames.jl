@@ -73,13 +73,13 @@ end
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 
-GD_iter_num = 200
-n_data = 100
+GD_iter_num = 10
+n_data = 1
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 θ₀ = ones(8)
 # 
-x0_set = [x0+rand(4)-0.5*ones(4) for ii in 1:n_data]
+x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:n_data]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
 
@@ -99,11 +99,56 @@ jldsave("LQ_data_$(Dates.now())"; nx, nu, ΔT, g,dynamics, costs, player_inputs,
     c_expert, expert_traj_list, expert_equi_list, conv_table, sol_table, loss_table, grad_table, 
     equi_table, iter_table, comp_time_table, θ_list, index_list, optim_loss_list)
 
+
+
+
+
+
 "Experiment 1: Without noitse. Histogram"
 #  X: number of cases
 # Y1: state prediction loss. Code: loss(θ, equilibrium_type, expert_traj, false)
 # Y2: generalization loss.   Code: generalization_loss()
 # Y3: computation time/GD iterations taken to converge.
+
+# (1) filter out the converged example here:
+
+time_list = [[0.0 for ii in 1:sum(conv_table[1])] for index in 1:3]
+jj = 1
+for ii in 1:n_data
+    if conv_table[1][ii] == 1
+        time_list[1][jj] = comp_time_table[1][ii]
+        time_list[2][jj] = comp_time_table[2][ii]
+        time_list[3][jj] = comp_time_table[3][ii]
+        jj = jj+1
+    end
+end
+
+histogram(time_list[1], bins = (0:1:80), alpha=0.5, label = "Bayesian")
+histogram!(time_list[2], bins = (0:1:80), alpha=0.5, label = "pure FB")
+histogram!(time_list[3], bins = (0:1:80), alpha=0.5, label = "pure OL")
+savefig("LQ_comp_time_table1.pdf")
+
+
+bins = 0:2:100.0
+transformed_comp_time_table = deepcopy(comp_time_table)
+for index in 1:3
+    for ii in n_data
+        if comp_time_table[index][ii] > bins[end]
+            transformed_comp_time_table[index][ii] = bins[end]-1e-6
+        end
+    end
+end
+
+
+histogram(transformed_comp_time_table[1], bins=bins, alpha=0.5, label = "Bayesian")
+histogram!(transformed_comp_time_table[2], bins=bins, alpha=0.5, label = "pure FB")
+histogram!(transformed_comp_time_table[3], bins=bins, alpha=0.5, label = "pure OL")
+savefig("LQ_comp_time.pdf")
+
+histogram(comp_time_table[1], bins = (0:10:300), alpha=0.5, label = "Bayesian")
+histogram!(comp_time_table[2], bins = (0:10:300), alpha=0.5, label = "pure FB")
+histogram!(comp_time_table[3], bins = (0:10:300), alpha=0.5, label = "pure OL")
+savefig("LQ_comp_time_table.pdf")
 
 
 
