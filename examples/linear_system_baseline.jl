@@ -10,6 +10,7 @@ using Optim
 using LinearAlgebra
 using Distributed
 using Dates
+using Statistics
 include("../src/diff_solver.jl")
 include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
@@ -161,11 +162,11 @@ savefig("LQ_comp_time_table.pdf")
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 3
-num_clean_traj = 2
+GD_iter_num = 300
+num_clean_traj = 20
 noise_level_list = 0.00:0.005:0.01
 num_noise_level = length(noise_level_list)
-num_obs = 4
+num_obs = 20
 x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
@@ -223,7 +224,7 @@ mean_predictions = [zeros(num_noise_level) for index in 1:3]
 variance_predictions = [zeros(num_noise_level) for index in 1:3]
 for index in 1:3
     for jj in 1:num_noise_level
-        @infiltrate    
+         
         mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
         variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
     end
