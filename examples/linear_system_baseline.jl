@@ -73,8 +73,8 @@ end
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 
-GD_iter_num = 200
-n_data = 300
+GD_iter_num = 2
+n_data = 2
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 θ₀ = ones(8)
@@ -88,6 +88,7 @@ conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_
 
 
 θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate(x0_set, ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
+
 
 
 iterations_BA,iterations_FB,iteration_OL=iterations_taken_to_converge(equi[1][1]),iterations_taken_to_converge(equi[2][1]),iterations_taken_to_converge(equi[3][1])
