@@ -165,24 +165,26 @@ end
 
 #--------------------------------------------------------------------------------------------------------------------------------
 "Robustness to observation noise"
-
-noisy_expert_traj1 = deepcopy(expert_traj1)
-for ii in 1:g.h
-    noisy_expert_traj1.x[ii] = expert_traj1.x[ii] + 0.05*rand(Normal(0,1), nx)
-    noisy_expert_traj1.u[ii] = expert_traj1.u[ii] + 0.05*rand(Normal(0,1), nu)
+noise_level_list = 0.005:0.005:0.1
+noisy_expert_traj1_list = []
+noisy_expert_traj2_list = []
+for ii in 1:length(noise_level_list)
+    push!(noisy_expert_traj1_list, generate_noisy_observation(nx, nu, g, expert_traj1, noise_level_list[ii], 1))
+    push!(noisy_expert_traj2_list, generate_noisy_observation(nx, nu, g, expert_traj2, noise_level_list[ii], 1))
 end
-noisy_expert_traj12 = generate_noisy_observation(nx, nu, g, expert_traj1, 0.05, 1)
 
-# noisy_expert_traj2 = deepcopy(expert_traj2)
-# for ii in 1:g.h
-#     noisy_expert_traj2.x[ii] = expert_traj2.x[ii] + 0.05*rand(Normal(0,1), nx)
-#     noisy_expert_traj2.u[ii] = expert_traj2.u[ii] + 0.05*rand(Normal(0,1), nu)
-# end
+max_GD_iteration_num =100
+
+θ₀ = ones(8)
+
+conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, noisy_expert_traj_list, 
+                                                                                                                        parameterized_cost, GD_iter_num)
 
 
-max_GD_iteration_num =40
+θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate(x0_set, ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
 
-θ₀ = 2*ones(8)
+
+
 
 
 # Given the noisy expert observation, we estimate objective for each noisy observation. Then, compute mean and variance of the loss.

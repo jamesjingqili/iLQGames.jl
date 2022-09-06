@@ -77,10 +77,10 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
                                                                                 g, expert_traj, x0, 10, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update)
-        # println("iteration: ", iter)
-        # println("current_loss: ", loss_values[iter+1])
-        # println("equilibrium_type: ", equilibrium_type_list[iter])
-        # println("Current solution: ", sol[iter+1])
+        println("iteration: ", iter)
+        println("current_loss: ", loss_values[iter+1])
+        println("equilibrium_type: ", equilibrium_type_list[iter])
+        println("Current solution: ", sol[iter+1])
         if loss_values[iter+1]<0.1
             converged = true
             break

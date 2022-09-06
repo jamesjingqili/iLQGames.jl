@@ -73,13 +73,13 @@ end
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 
-GD_iter_num = 2
-n_data = 2
+GD_iter_num = 200
+n_data = 1
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
-θ₀ = ones(8)
+θ₀ = θ_true
 # 
-x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:n_data]
+x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:n_data]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
 
@@ -154,11 +154,60 @@ histogram!(comp_time_table[3], bins = (0:10:300), alpha=0.5, label = "pure OL")
 savefig("LQ_comp_time_table.pdf")
 
 
+#----------------------------------------------------------------------------------------------------------------------------------
 
 "Experiment 2: With noise. Scatter plot"
 # X: noise variance
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
+GD_iter_num = 300
+num_clean_traj = 10
+
+noise_level_list = [0.00]
+num_noise_level = length(noise_level_list)
+noisy_expert_traj_list = [[zero(SystemTrajectory, g) for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
+
+x0_set = [x0+(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
+c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
+
+for ii in 1:num_clean_traj
+    for jj in 1:num_noise_level
+        tmp = generate_noisy_observation(nx, nu, g, expert_traj_list[ii], noise_level_list[jj], 40)
+        for t in 1:g.h
+            noisy_expert_traj_list[ii][jj].x[t] = tmp[1].x[t]
+        end
+    end
+end
+
+conv_table_list = []
+sol_table_list = []
+loss_table_list = []
+grad_table_list = []
+equi_table_list = []
+iter_table_list = []
+comp_time_table_list = []
+
+θ_list_list = []
+index_list_list = []
+optim_loss_list_list = []
+θ₀ = ones(8)
+for ii in 1:num_clean_traj
+    conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, 
+                                                                                    [x0_set[ii] for jj in 1:num_noise_level], 
+                                                                                            noisy_expert_traj_list[ii], parameterized_cost, GD_iter_num)
+    θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate(x0_set, ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
+    push!(conv_table_list, conv_table)
+    push!(sol_table_list, sol_table)
+    push!(loss_table_list, loss_table)
+    push!(grad_table_list, grad_table)
+    push!(equi_table_list, equi_table)
+    push!(iter_table_list, equi_table)
+    push!(comp_time_table_list, comp_time_table)
+    push!(θ_list_list, θ_list)
+    push!(index_list_list, index_list)
+    push!(optim_loss_list_list, optim_loss_list)
+end
+
 
 
 
