@@ -104,7 +104,7 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
     conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
     loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
     total_iter_table = zeros(1+n_equi_types, n_data)
-    for iter in 1:n_data
+    @distributed for iter in 1:n_data
         println(iter)
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]

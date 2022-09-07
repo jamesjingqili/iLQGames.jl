@@ -162,11 +162,11 @@ savefig("LQ_comp_time_table.pdf")
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 300
-num_clean_traj = 20
+GD_iter_num = 200
+num_clean_traj = 10
 noise_level_list = 0.00:0.005:0.01
 num_noise_level = length(noise_level_list)
-num_obs = 20
+num_obs = 10
 x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
@@ -201,7 +201,7 @@ optim_loss_list_list = deepcopy(conv_table_list)
 
 
 θ₀ = ones(8)
-for ii in 1:num_clean_traj
+@distributed for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
