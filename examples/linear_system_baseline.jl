@@ -162,9 +162,9 @@ savefig("LQ_comp_time_table.pdf")
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 200
-num_clean_traj = 10
-noise_level_list = 0.00:0.005:0.01
+GD_iter_num = 100
+num_clean_traj = 6
+noise_level_list = [0.005]
 num_noise_level = length(noise_level_list)
 num_obs = 10
 x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
