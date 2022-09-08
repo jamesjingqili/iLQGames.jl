@@ -1,10 +1,30 @@
+@everywhere using Pkg
+@everywhere Pkg.activate("../")
+
+@everywhere using iLQGames
+@everywhere import iLQGames: dx
+@everywhere import BenchmarkTools
+@everywhere using Plots
+@everywhere using ForwardDiff
+@everywhere using iLQGames:
+        SystemTrajectory
+@everywhere using Infiltrator
+@everywhere using Optim
+@everywhere using LinearAlgebra
+@everywhere using Distributed
+@everywhere using Dates
+@everywhere using Statistics
+@everywhere include("../src/diff_solver.jl")
+@everywhere include("../src/inverse_game_solver.jl")
+@everywhere include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+
 using iLQGames
 import iLQGames: dx
 import BenchmarkTools
 using Plots
 using ForwardDiff
 using iLQGames:
-    SystemTrajectory
+        SystemTrajectory
 using Infiltrator
 using Optim
 using LinearAlgebra
@@ -15,6 +35,7 @@ include("../src/diff_solver.jl")
 include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
+@everywhere begin
 # parametes: number of states, number of inputs, sampling time, horizon
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
 # setup the dynamics
@@ -34,6 +55,10 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
 x0 = SVector(0, 1, 1,1)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
+# get a solver, choose initial conditions and solve (in about 9 ms with AD)
+solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
+c2, expert_traj2, strategies2 = solve(g, solver2, x0)
+end
 
 x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
 x2_OL, y2_OL = [expert_traj1.x[i][3] for i in 1:game_horizon], [expert_traj1.x[i][4] for i in 1:game_horizon];
@@ -46,9 +71,7 @@ end
 gif(anim1, "LQ_OL.gif", fps = 10)
 
 
-# get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
-c2, expert_traj2, strategies2 = solve(g, solver2, x0)
+
 
 x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
 x2_FB, y2_FB = [expert_traj2.x[i][3] for i in 1:game_horizon], [expert_traj2.x[i][4] for i in 1:game_horizon];
@@ -62,11 +85,12 @@ end
 gif(anim2, "LQ_FB.gif", fps = 10)
 
 #-----------------------------------------------------------------------------------------------------------------------------------
-
+@everywhere begin
 function parameterized_cost(θ::Vector)
     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[7]*x[1]^2 + θ[8]*x[2]^2 + θ[1]*x[3]^2 + θ[2]*x[4]^2 + θ[3]*(u[1]^2 + u[2]^2))),
              FunctionPlayerCost((g, x, u, t) -> ( θ[4]*(x[1]-x[3])^2 + θ[5]*(x[2]-x[4])^2 + θ[6]*(u[3]^2 + u[4]^2))))
     return costs
+end
 end
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -175,6 +199,7 @@ noisy_expert_traj_list = [[[zero(SystemTrajectory, g) for kk in 1:num_obs] for j
 x0_set = [x0+(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
+
 for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         tmp = generate_noisy_observation(nx, nu, g, expert_traj_list[ii], noise_level_list[jj], num_obs)
@@ -186,6 +211,7 @@ for ii in 1:num_clean_traj
         end
     end
 end
+
 
 conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
 sol_table_list = deepcopy(conv_table_list)
@@ -201,7 +227,8 @@ optim_loss_list_list = deepcopy(conv_table_list)
 
 
 θ₀ = ones(8)
-@distributed for ii in 1:num_clean_traj
+
+@sync @distributed for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
