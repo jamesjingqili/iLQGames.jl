@@ -169,7 +169,7 @@ function generalization_loss(g, θ, x0_set, expert_traj_list, parameterized_cost
     loss_list = zeros(num_samples)
     traj_list = [zero(SystemTrajectory, g) for ii in 1:num_samples]
 
-    @distributed for iter in 1:length(x0_set)
+    for iter in 1:length(x0_set)
         loss_list[iter], tmp_traj, _, _ = loss(θ, equilibrium_type_list[iter], expert_traj_list[iter], false)
         for t in 1:g.h
             traj_list[iter].x[t] = tmp_traj.x[t]
@@ -186,7 +186,7 @@ function generate_traj(g, θ, x0_set, parameterized_cost, equilibrium_type_list 
     conv = [false for ii in 1:n_data]
     expert_traj_list = [zero(SystemTrajectory, g) for ii in 1:n_data]
     expert_equi_list = ["" for ii in 1:n_data]
-    @distributed for item in 1:n_data
+    for item in 1:n_data
         if rand(1)[1]>0.5
             expert_equi_list[item] = equilibrium_type_list[1]
         else
@@ -276,5 +276,38 @@ function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list
         end
     end
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
+end
+
+function generate_random_LQ_problem_and_expert_traj(nx,nu,ΔT, x0, game_horizon, player_inputs, all_equilibrium_types, num_LQs)
+    games, solvers, expert_trajs, expert_equi = [], [], [], []
+    struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
+    dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
+    dynamics = LinearSystem()
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+             FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+    g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+    if rand(1)>0.5
+        equi = all_equilibrium_types[1]
+    else
+        equi = all_equilibrium_types[2]
+    end
+    solver = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
+    push!(games, g)
+    push!(expert_trajs, traj)
+    push!(expert_equi, equi)
+    push!(solvers, solver)
+    
+    for index in 2:num_LQs
+        dx(cs::LinearSystem, x,u,t) = SVector(u[1],u[2],u[3],u[4]) + 0.1*(rand(4,4)-ones(4,4))*SVector(x[1],x[2],x[3],x[4])
+        dynamics = LinearSystem()
+        costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+             FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+        g = GeneralGame()
+        push!(games, g)
+        push!(expert_trajs, traj)
+        push!(expert_equi, equi)
+        push!(solvers, solver)
+    end
+    return games, expert_trajs, expert_equi, solvers
 end
 

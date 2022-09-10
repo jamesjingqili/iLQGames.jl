@@ -1,3 +1,4 @@
+using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate("../")
 
@@ -18,22 +19,22 @@
 @everywhere include("../src/inverse_game_solver.jl")
 @everywhere include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
-using iLQGames
-import iLQGames: dx
-import BenchmarkTools
-using Plots
-using ForwardDiff
-using iLQGames:
-        SystemTrajectory
-using Infiltrator
-using Optim
-using LinearAlgebra
-using Distributed
-using Dates
-using Statistics
-include("../src/diff_solver.jl")
-include("../src/inverse_game_solver.jl")
-include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+# using iLQGames
+# import iLQGames: dx
+# import BenchmarkTools
+# using Plots
+# using ForwardDiff
+# using iLQGames:
+#         SystemTrajectory
+# using Infiltrator
+# using Optim
+# using LinearAlgebra
+# using Distributed
+# using Dates
+# using Statistics
+# include("../src/diff_solver.jl")
+# include("../src/inverse_game_solver.jl")
+# include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 @everywhere begin
 # parametes: number of states, number of inputs, sampling time, horizon
@@ -42,6 +43,7 @@ nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
 dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
+
 dynamics = LinearSystem()
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
@@ -186,12 +188,12 @@ savefig("LQ_comp_time_table.pdf")
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 100
-num_clean_traj = 6
-noise_level_list = [0.005]
+GD_iter_num = 300
+num_clean_traj = 10
+noise_level_list = 0:0.005:0.05
 num_noise_level = length(noise_level_list)
 num_obs = 10
-x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
+x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 noisy_expert_traj_list = [[[zero(SystemTrajectory, g) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
@@ -200,7 +202,7 @@ x0_set = [x0+(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
 
-for ii in 1:num_clean_traj
+Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         tmp = generate_noisy_observation(nx, nu, g, expert_traj_list[ii], noise_level_list[jj], num_obs)
         for kk in 1:num_obs
@@ -228,7 +230,7 @@ optim_loss_list_list = deepcopy(conv_table_list)
 
 θ₀ = ones(8)
 
-@sync @distributed for ii in 1:num_clean_traj
+Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
