@@ -1,6 +1,6 @@
 using ProgressBars
 
-function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
+function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
                 nominal_solver=[], nominal_traj=[]) 
     x0 = first(expert_traj.x)
     if gradient_mode == false
@@ -8,7 +8,6 @@ function loss(θ, equilibrium_type, expert_traj, gradient_mode = true, specified
         nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)
         nominal_converged, nominal_traj, nominal_strategies = solve(nominal_game, nominal_solver, x0)
         loss_value = norm(nominal_traj.x - expert_traj.x)^2 + norm(nominal_traj.u-expert_traj.u)^2
-        # @infiltrate
         return loss_value, nominal_traj, nominal_strategies, nominal_solver
     else
         if specified_solver_and_traj == false
@@ -40,17 +39,17 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
         equilibrium_type = inverse_game_update_belief(θ, g, expert_traj, x0, parameterized_cost, "FBNE_costate", "OLNE_costate")
     end
     if specify_current_loss_and_solver == false
-        current_loss, current_traj, current_str, current_solver = loss(θ, equilibrium_type, expert_traj, false)
+        current_loss, current_traj, current_str, current_solver = loss(θ,iLQGames.dynamics(g), equilibrium_type, expert_traj, false)
     end
     # gradient_value = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
-    gradient_value = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
+    gradient_value = ForwardDiff.gradient(x -> loss(x,iLQGames.dynamics(g), equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
     for iter in 1:max_GD_iteration_num
         θ_next = θ-α*gradient_value
         # while minimum(θ_next)<=-0.1
         #     α = α*0.5^2
         #     θ_next = θ-α*gradient_value
         # end
-        new_loss, new_traj, new_str, new_solver = loss(θ_next, equilibrium_type, expert_traj, false)
+        new_loss, new_traj, new_str, new_solver = loss(θ_next, iLQGames.dynamics(g),equilibrium_type, expert_traj, false)
         if new_loss < current_loss
             # println("Inverse Game Line Search Step Size: ", α)
             return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
@@ -170,7 +169,7 @@ function generalization_loss(g, θ, x0_set, expert_traj_list, parameterized_cost
     traj_list = [zero(SystemTrajectory, g) for ii in 1:num_samples]
 
     for iter in 1:length(x0_set)
-        loss_list[iter], tmp_traj, _, _ = loss(θ, equilibrium_type_list[iter], expert_traj_list[iter], false)
+        loss_list[iter], tmp_traj, _, _ = loss(θ, iLQGames.dynamics(g), equilibrium_type_list[iter], expert_traj_list[iter], false)
         for t in 1:g.h
             traj_list[iter].x[t] = tmp_traj.x[t]
             traj_list[iter].u[t] = tmp_traj.u[t]
@@ -181,7 +180,7 @@ end
 
 
 # generate expert trajectories for initial conditions in x0_set
-function generate_traj(g, θ, x0_set, parameterized_cost, equilibrium_type_list )
+function generate_traj(g, x0_set, parameterized_cost, equilibrium_type_list )
     n_data = length(x0_set)
     conv = [false for ii in 1:n_data]
     expert_traj_list = [zero(SystemTrajectory, g) for ii in 1:n_data]
@@ -278,36 +277,69 @@ function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
 end
 
-function generate_random_LQ_problem_and_expert_traj(nx,nu,ΔT, x0, game_horizon, player_inputs, all_equilibrium_types, num_LQs)
-    games, solvers, expert_trajs, expert_equi = [], [], [], []
-    struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
-    dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
-    dynamics = LinearSystem()
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
-             FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
-    g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-    if rand(1)>0.5
-        equi = all_equilibrium_types[1]
-    else
-        equi = all_equilibrium_types[2]
+# function generate_random_LQ_problem_and_traj(nx,nu,ΔT, x0_set, equilibrium_type_list, game_horizon, player_inputs, num_LQs, num_traj_per_LQ)
+#     games, solvers, expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
+#     costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+#              FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+#     for index in 1:num_LQs
+#         for ii in 1:num_traj_per_LQ
+#             if index == 1
+#                 dx(cs::LinearSystem, x,u,t) = SVector(u[1],u[2],u[3],u[4])
+#             else
+#                 # dx(cs::LinearSystem, x,u,t) = SVector(u[1],u[2],u[3],u[4]) + 0.1*(rand(4,4)-ones(4,4))*SVector(x[1],x[2],x[3],x[4])
+#                 dx(cs::LinearSystem, x,u,t) = SVector(u[1],u[2],u[3],u[4]) - 0.1*SVector(x[1],x[2],x[3],x[4])
+#             end
+#             dynamics = LinearSystem()
+#             g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+#             if rand(1)[1]>0.5
+#                 equi = equilibrium_type_list[1]
+#             else
+#                 equi = equilibrium_type_list[2]
+#             end
+#             solver = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
+#             converged, traj, _ = solve(g, solver, x0_set[ii])
+#             push!(games, g)
+#             push!(expert_trajs, traj)
+#             push!(expert_equi, equi)
+#             push!(solvers, solver)
+#             push!(converged_expert, converged)
+#         end
+#     end
+#     return games, expert_trajs, expert_equi, solvers, converged_expert
+# end
+
+
+function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs, num_traj_per_LQ)
+    games, solvers,expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
+    for index in 1:num_LQs
+        if index == 1
+            game = GeneralGame(game_horizon,player_inputs, LinearSystem{ΔT}(SMatrix{4,4}(Matrix(0.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), costs)
+        else
+            game = GeneralGame(game_horizon,player_inputs, LinearSystem{ΔT}(SMatrix{4,4}(rand(4,4)-0.5*ones(4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), costs)
+        end
+        for ii in 1:num_traj_per_LQ
+            if rand(1)[1]>0.5
+                equi = equilibrium_type_list[1]
+            else
+                equi = equilibrium_type_list[2]
+            end
+            @infiltrate
+            solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
+            converged, traj, _ = solve(game, solver, x0_set[ii])
+            push!(games, game)
+            push!(expert_trajs, traj)
+            push!(expert_equi, equi)
+            push!(solvers, solver)
+            push!(converged_expert, converged)
+        end
     end
-    solver = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
-    push!(games, g)
-    push!(expert_trajs, traj)
-    push!(expert_equi, equi)
-    push!(solvers, solver)
-    
-    for index in 2:num_LQs
-        dx(cs::LinearSystem, x,u,t) = SVector(u[1],u[2],u[3],u[4]) + 0.1*(rand(4,4)-ones(4,4))*SVector(x[1],x[2],x[3],x[4])
-        dynamics = LinearSystem()
-        costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
-             FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
-        g = GeneralGame()
-        push!(games, g)
-        push!(expert_trajs, traj)
-        push!(expert_equi, equi)
-        push!(solvers, solver)
-    end
-    return games, expert_trajs, expert_equi, solvers
+    return games, expert_trajs, expert_equi, solvers, converged_expert
 end
+
+
+
+
+
+
+
 
