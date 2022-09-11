@@ -257,7 +257,6 @@ mean_predictions = [zeros(num_noise_level) for index in 1:3]
 variance_predictions = [zeros(num_noise_level) for index in 1:3]
 for index in 1:3
     for jj in 1:num_noise_level
-         
         mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
         variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
     end

@@ -45,10 +45,12 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
     gradient_value = ForwardDiff.gradient(x -> loss(x,iLQGames.dynamics(g), equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
     for iter in 1:max_GD_iteration_num
         θ_next = θ-α*gradient_value
-        # while minimum(θ_next)<=-0.1
-        #     α = α*0.5^2
-        #     θ_next = θ-α*gradient_value
-        # end
+        if dynamics == DoubleUnicycle()
+            while minimum(θ_next[[1,2,3,5,6,7]])<=-0.1
+                α = α*0.5^2
+                θ_next = θ-α*gradient_value
+            end
+        end
         new_loss, new_traj, new_str, new_solver = loss(θ_next, iLQGames.dynamics(g),equilibrium_type, expert_traj, false)
         if new_loss < current_loss
             # println("Inverse Game Line Search Step Size: ", α)
@@ -72,6 +74,8 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
     gradient = [zeros(θ_dim) for iter in 1:max_GD_iteration_num]
     equilibrium_type_list = ["" for iter in 1:max_GD_iteration_num]
     converged = false
+    keep_non_progressing_counter = 0
+    getting_stuck_in_local_solution_counter = 0
     for iter in 1:max_GD_iteration_num
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
                                                                                 g, expert_traj, x0, 10, 
@@ -80,6 +84,23 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
         println("current_loss: ", loss_values[iter+1])
         println("equilibrium_type: ", equilibrium_type_list[iter])
         println("Current solution: ", sol[iter+1])
+        if iter >4
+            if loss_values[iter]>loss_values[iter-1] && loss_values[iter-1]>loss_values[iter-2]
+                keep_non_progressing_counter += 1
+            else
+                keep_non_progressing_counter = 0
+            end
+            
+            if loss_values[iter-1] - loss_values[iter] <1e-5 && loss_values[iter-2] - loss_values[iter-1] <1e-5
+                getting_stuck_in_local_solution_counter += 1
+            else 
+                getting_stuck_in_local_solution_counter = 0
+            end
+
+            if getting_stuck_in_local_solution_counter > 5 || keep_non_progressing_counter > 5
+                break
+            end
+        end
         if loss_values[iter+1]<0.1
             converged = true
             break

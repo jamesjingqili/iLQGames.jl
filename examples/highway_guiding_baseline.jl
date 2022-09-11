@@ -276,14 +276,7 @@ end
 # test robustness to observation noise
 
 
-num_test = 20
-sampled_initial_states = [x0+[0.1;0.1;0.1;0.1; 0.1;0.1;0.1;0.1].*rand(Normal(0,1),nx) for ii in 1:num_test]
-recorded_loss
 
-for item in 1:num_test
-
-
-end
 
 # generalization to unseen initial state
 
@@ -291,5 +284,9 @@ end
 
 
 # average computation time: FB, OL, Joint
+
+
+
+
 
 
