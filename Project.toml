@@ -41,6 +41,7 @@ GR = "0.49, 0.50, 0.51, 0.52, 0.53, 0.54, 0.55, 0.57, 0.58, 0.59, 0.60, 0.61, 0.
 IdentityRanges = "0.3"
 LaTeXStrings = "1.1"
 ORCA = "0.3, 0.4, 0.5"
+Optim = "1"
 Parameters = "0.12"
 Plots = "1.3"
 Reexport = "0.2, 1.0"
