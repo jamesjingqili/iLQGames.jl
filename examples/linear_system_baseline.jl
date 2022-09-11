@@ -1,40 +1,45 @@
 using Distributed
-@everywhere using Pkg
-@everywhere Pkg.activate("../")
+@everywhere begin
+    using Pkg
+    Pkg.activate("../")
 
-@everywhere using iLQGames
-@everywhere import iLQGames: dx
-@everywhere import BenchmarkTools
-@everywhere using Plots
-@everywhere using ForwardDiff
-@everywhere using iLQGames:
+    using iLQGames
+    import iLQGames: dx
+    import BenchmarkTools
+    using Plots
+    using ForwardDiff
+    using iLQGames:
         SystemTrajectory
-@everywhere using Infiltrator
-@everywhere using Optim
-@everywhere using LinearAlgebra
-@everywhere using Distributed
-@everywhere using Dates
-@everywhere using Statistics
-@everywhere include("../src/diff_solver.jl")
-@everywhere include("../src/inverse_game_solver.jl")
-@everywhere include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+    using iLQGames:
+        LinearSystem
+    using Infiltrator
+    using Optim
+    using LinearAlgebra
+    using Distributed
+    using Dates
+    using Statistics
+    include("../src/diff_solver.jl")
+    include("../src/inverse_game_solver.jl")
+    include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+end
 
-# using iLQGames
-# import iLQGames: dx
-# import BenchmarkTools
-# using Plots
-# using ForwardDiff
-# using iLQGames:
-#         SystemTrajectory
-# using Infiltrator
-# using Optim
-# using LinearAlgebra
-# using Distributed
-# using Dates
-# using Statistics
-# include("../src/diff_solver.jl")
-# include("../src/inverse_game_solver.jl")
-# include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+
+using iLQGames
+import iLQGames: dx
+import BenchmarkTools
+using Plots
+using ForwardDiff
+using iLQGames:
+        SystemTrajectory
+using Infiltrator
+using Optim
+using LinearAlgebra
+using Distributed
+using Dates
+using Statistics
+include("../src/diff_solver.jl")
+include("../src/inverse_game_solver.jl")
+include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 @everywhere begin
 # parametes: number of states, number of inputs, sampling time, horizon
@@ -45,6 +50,7 @@ struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
 
 dynamics = LinearSystem()
+
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
 costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
@@ -107,7 +113,7 @@ n_data = 1
 θ₀ = θ_true
 # 
 x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:n_data]
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
+c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 
 
 conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
@@ -189,18 +195,16 @@ savefig("LQ_comp_time_table.pdf")
 # Y2: generalization loss, mean and variance
 
 GD_iter_num = 300
-num_clean_traj = 10
-noise_level_list = 0:0.005:0.05
+num_clean_traj = 1
+noise_level_list = 0:0.005:0.0
 num_noise_level = length(noise_level_list)
 num_obs = 10
+games = []
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
+
+c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 noisy_expert_traj_list = [[[zero(SystemTrajectory, g) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
-
-x0_set = [x0+(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,θ_true,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
-
 
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
@@ -230,7 +234,7 @@ optim_loss_list_list = deepcopy(conv_table_list)
 
 θ₀ = ones(8)
 
-Threads.@threads for ii in 1:num_clean_traj
+for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
@@ -259,12 +263,38 @@ for index in 1:3
     end
 end
 
+
+
+g1 = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+g2 = GeneralGame(game_horizon, player_inputs, iLQGames.LinearSystem{ΔT}(SMatrix{4,4}(rand(4,4)),SMatrix{4,4}(rand(4,4))), costs)
+
+
 # generalization to unseen initial state
 
 
 
 
 # average computation time: FB, OL, Joint
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+# indices of inputs that each player controls
+player_inputs = (SVector(1,2), SVector(3,4))
+
+
+games, expert_trajs, expert_equi, solvers, converged_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, [SVector{4}(0.0,1.0,1.0,1.0)], ["OLNE_costate","OLNE_costate"], 2, 1)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
