@@ -70,7 +70,7 @@ end
 
 
 function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equilibrium_type=[], 
-                            Bayesian_update=false)
+                            Bayesian_update=false, max_LineSearch_num=15)
     θ_dim = length(θ)
     sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
     sol[1] = θ
@@ -83,7 +83,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
     getting_stuck_in_local_solution_counter = 0
     for iter in 1:max_GD_iteration_num
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
-                                                                                g, expert_traj, x0, 10, 
+                                                                                g, expert_traj, x0, max_LineSearch_num, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update)
         println("iteration: ", iter)
         println("current_loss: ", loss_values[iter+1])
@@ -117,7 +117,7 @@ end
 
 # θ represents the initialization in gradient descent
 function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, parameterized_cost, 
-                                                max_GD_iteration_num, Bayesian_update=true,
+                                                max_GD_iteration_num, max_LineSearch_num=15, Bayesian_update=true,
                                                 all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
     # In the returned table, the rows coresponding to Bayesian, FB, OL
     n_data = length(x0_set)
@@ -135,13 +135,13 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
         expert_traj = expert_traj_list[iter]
         time_stamp = time()
         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
+                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
         comp_time_table[1][iter] = time() - time_stamp
         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
         for index in 1:n_equi_types
             time_stamp = time()            
             conv_table[index+1][iter], sol_table[index+1][iter], loss_table[index+1][iter], grad_table[index+1][iter], equi_table[index+1][iter]=objective_inference(x0,
-                                                                θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false)
+                                                                θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
             comp_time_table[index+1][iter] = time() - time_stamp
             total_iter_table[index+1,iter] = iterations_taken_to_converge(equi_table[index+1][iter])
         end
@@ -277,7 +277,7 @@ end
 
 # If the solution doesn't converge in run_experiments_with_baselines, then we can continue here
 function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list, parameterized_cost, 
-                                                max_GD_iteration_num, Bayesian_update=true,
+                                                max_GD_iteration_num, max_LineSearch_num = 15, Bayesian_update=true,
                                                 all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
     n_data = length(x0_set)
     n_equi_types = length(all_equilibrium_types)
@@ -292,11 +292,11 @@ function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
-                                                                        θ_list[1][iter],expert_traj,g,max_GD_iteration_num,"FBNE_costate", true)
+                                                                        θ_list[1][iter],expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
         for index in 1:n_equi_types
             conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
-                                                                        θ_list[1+index][iter],expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false)
+                                                                        θ_list[1+index][iter],expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
             total_iter_table[1+index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
         end
     end

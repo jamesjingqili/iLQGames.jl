@@ -69,7 +69,7 @@ end
 @everywhere begin
 
 GD_iter_num = 50
-num_clean_traj = 10
+num_clean_traj = 6
 noise_level_list = 0.02:0.02:0.2
 num_noise_level = length(noise_level_list)
 num_obs = 6
@@ -112,7 +112,7 @@ optim_loss_list_list = deepcopy(conv_table_list);
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)

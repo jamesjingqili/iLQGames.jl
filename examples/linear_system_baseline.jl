@@ -118,7 +118,7 @@ c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_
 
 
 conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
-                                                                                                                        parameterized_cost, GD_iter_num)
+                                                                                                                        parameterized_cost, GD_iter_num, 15)
 
 
 θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate(x0_set, ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
