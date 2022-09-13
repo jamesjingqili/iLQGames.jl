@@ -2,7 +2,7 @@ using Distributed
 @everywhere begin
     using Pkg
     Pkg.activate("../")
-
+    Pkg.instantiate
     using iLQGames
     import iLQGames: dx
     import BenchmarkTools
@@ -197,11 +197,13 @@ savefig("LQ_comp_time_table.pdf")
 
 include("experiment_utils.jl")
 
-GD_iter_num = 100
+@everywhere begin
+
+GD_iter_num = 50
 num_clean_traj = 10
-noise_level_list = 0:0.01:0.04
+noise_level_list = 0.02:0.02:0.06
 num_noise_level = length(noise_level_list)
-num_obs = 10
+num_obs = 5
 x0 = SVector(0, 1, 1,1)
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
@@ -218,7 +220,9 @@ end
 # c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 noisy_expert_traj_list = [[[zero(SystemTrajectory, games[1]) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 
-for ii in 1:num_clean_traj
+end
+
+Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         tmp = generate_noisy_observation(nx, nu, games[ii], expert_traj_list[ii], noise_level_list[jj], num_obs)
         for kk in 1:num_obs
@@ -230,7 +234,7 @@ for ii in 1:num_clean_traj
     end
 end
 
-
+@everywhere begin
 conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 sol_table_list = deepcopy(conv_table_list);
 loss_table_list = deepcopy(conv_table_list);
@@ -243,10 +247,11 @@ comp_time_table_list = deepcopy(conv_table_list);
 index_list_list = deepcopy(conv_table_list);
 optim_loss_list_list = deepcopy(conv_table_list);
 
-
 θ₀ = ones(5);
+end
 
-for ii in 1:num_clean_traj
+
+Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(games[ii],θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
