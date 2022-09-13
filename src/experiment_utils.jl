@@ -49,13 +49,6 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
             α = α*0.5^2
             θ_next = θ-α*gradient_value
         end
-        # if dynamics == DoubleUnicycle()
-        #     while minimum(θ_next[[1,2,3,5,6,7]])<=-0.1
-        #         α = α*0.5^2
-        #         θ_next = θ-α*gradient_value
-        #     end
-        # end
-
 
         new_loss, new_traj, new_str, new_solver = loss(θ_next, iLQGames.dynamics(g),equilibrium_type, expert_traj, false)
         if new_loss < current_loss
@@ -81,6 +74,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
     converged = false
     keep_non_progressing_counter = 0
     getting_stuck_in_local_solution_counter = 0
+    consistent_information_pattern = true
     for iter in 1:max_GD_iteration_num
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
                                                                                 g, expert_traj, x0, max_LineSearch_num, 
@@ -89,6 +83,10 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
         println("current_loss: ", loss_values[iter+1])
         println("equilibrium_type: ", equilibrium_type_list[iter])
         println("Current solution: ", sol[iter+1])
+        if iter >2 && equilibrium_type_list[iter-1] != equilibrium_type_list[iter]
+            consistent_information_pattern = false
+        end
+
         if iter >4
             if loss_values[iter]>loss_values[iter-1] && loss_values[iter-1]>loss_values[iter-2]
                 keep_non_progressing_counter += 1
@@ -105,19 +103,21 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
             if getting_stuck_in_local_solution_counter > 3 || keep_non_progressing_counter > 3 || abs(loss_values[iter+1]-loss_values[iter])<1e-6
                 break
             end
+
         end
         if loss_values[iter+1]<0.2 # convergence tolerence
             converged = true
             break
         end
+
     end
-    return converged, sol, loss_values, gradient, equilibrium_type_list
+    return converged, sol, loss_values, gradient, equilibrium_type_list, consistent_information_pattern
 end
 
 
 # θ represents the initialization in gradient descent
 function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, parameterized_cost, 
-                                                max_GD_iteration_num, max_LineSearch_num=15, Bayesian_update=true,
+                                                max_GD_iteration_num, max_LineSearch_num=15, record_time=false, Bayesian_update=true,
                                                 all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
     # In the returned table, the rows coresponding to Bayesian, FB, OL
     n_data = length(x0_set)
@@ -133,17 +133,23 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
         println(iter)
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
-        time_stamp = time()
-        conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
+        if record_time==true    time_stamp = time()  end
+        conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter], consistent_information_pattern=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
-        comp_time_table[1][iter] = time() - time_stamp
+        if record_time==true    comp_time_table[1][iter] = time() - time_stamp  end
         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
         for index in 1:n_equi_types
-            time_stamp = time()            
-            conv_table[index+1][iter], sol_table[index+1][iter], loss_table[index+1][iter], grad_table[index+1][iter], equi_table[index+1][iter]=objective_inference(x0,
-                                                                θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
-            comp_time_table[index+1][iter] = time() - time_stamp
-            total_iter_table[index+1,iter] = iterations_taken_to_converge(equi_table[index+1][iter])
+
+            if consistent_information_pattern==true && equi_table[1][1] == all_equilibrium_types[index]
+                conv_table[index+1][iter], sol_table[index+1][iter], loss_table[index+1][iter], grad_table[index+1][iter], equi_table[index+1][iter] = conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]
+                
+            else
+                if record_time==true    time_stamp = time()  end        
+                conv_table[index+1][iter], sol_table[index+1][iter], loss_table[index+1][iter], grad_table[index+1][iter], equi_table[index+1][iter],_=objective_inference(x0,
+                                                                    θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
+                if record_time==true    comp_time_table[index+1][iter] = time() - time_stamp  end
+                total_iter_table[index+1,iter] = iterations_taken_to_converge(equi_table[index+1][iter])
+            end
         end
     end
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
@@ -276,32 +282,32 @@ end
 
 
 # If the solution doesn't converge in run_experiments_with_baselines, then we can continue here
-function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list, parameterized_cost, 
-                                                max_GD_iteration_num, max_LineSearch_num = 15, Bayesian_update=true,
-                                                all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
-    n_data = length(x0_set)
-    n_equi_types = length(all_equilibrium_types)
-    sol_table  = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    grad_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    equi_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    comp_time_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
-    loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
-    total_iter_table = zeros(1+n_equi_types, n_data)
-    @distributed for iter in 1:n_data
-        x0 = x0_set[iter]
-        expert_traj = expert_traj_list[iter]
-        conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
-                                                                        θ_list[1][iter],expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
-        total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
-        for index in 1:n_equi_types
-            conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
-                                                                        θ_list[1+index][iter],expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
-            total_iter_table[1+index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
-        end
-    end
-    return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
-end
+# function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list, parameterized_cost, 
+#                                                 max_GD_iteration_num, max_LineSearch_num = 15, Bayesian_update=true,
+#                                                 all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
+#     n_data = length(x0_set)
+#     n_equi_types = length(all_equilibrium_types)
+#     sol_table  = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     grad_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     equi_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     comp_time_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     conv_table = [[false for jj in 1:n_data] for ii in 1:n_equi_types+1] # converged_table
+#     loss_table = [[[] for jj in 1:n_data] for ii in 1:n_equi_types+1]
+#     total_iter_table = zeros(1+n_equi_types, n_data)
+#     @distributed for iter in 1:n_data
+#         x0 = x0_set[iter]
+#         expert_traj = expert_traj_list[iter]
+#         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]=objective_inference(x0,
+#                                                                         θ_list[1][iter],expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
+#         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
+#         for index in 1:n_equi_types
+#             conv_table[1+index][iter], sol_table[1+index][iter], loss_table[1+index][iter], grad_table[1+index][iter], equi_table[1+index][iter]=objective_inference(x0,
+#                                                                         θ_list[1+index][iter],expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
+#             total_iter_table[1+index,iter] = iterations_taken_to_converge(equi_table[1+index][iter])
+#         end
+#     end
+#     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
+# end
 
 
 function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs)
