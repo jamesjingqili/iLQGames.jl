@@ -96,13 +96,13 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
                 keep_non_progressing_counter = 0
             end
             
-            if loss_values[iter-1] - loss_values[iter] <1e-8 && loss_values[iter-2] - loss_values[iter-1] <1e-8
+            if loss_values[iter-1] - loss_values[iter] <1e-6 && loss_values[iter-2] - loss_values[iter-1] <1e-6
                 getting_stuck_in_local_solution_counter += 1
             else 
                 getting_stuck_in_local_solution_counter = 0
             end
 
-            if getting_stuck_in_local_solution_counter > 3 || keep_non_progressing_counter > 3 || abs(loss_values[iter+1]-loss_values[iter])<1e-8
+            if getting_stuck_in_local_solution_counter > 3 || keep_non_progressing_counter > 3 || abs(loss_values[iter+1]-loss_values[iter])<1e-6
                 break
             end
         end
