@@ -83,7 +83,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
     getting_stuck_in_local_solution_counter = 0
     for iter in 1:max_GD_iteration_num
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
-                                                                                g, expert_traj, x0, 20, 
+                                                                                g, expert_traj, x0, 10, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update)
         println("iteration: ", iter)
         println("current_loss: ", loss_values[iter+1])
