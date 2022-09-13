@@ -197,7 +197,7 @@ savefig("LQ_comp_time_table.pdf")
 
 include("experiment_utils.jl")
 
-GD_iter_num = 200
+GD_iter_num = 100
 num_clean_traj = 10
 noise_level_list = 0:0.01:0.04
 num_noise_level = length(noise_level_list)
