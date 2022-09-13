@@ -1,8 +1,8 @@
 using Distributed
+@everywhere using Pkg
+@everywhere Pkg.activate("../")
+@everywhere Pkg.instantiate()
 @everywhere begin
-    using Pkg
-    Pkg.activate("../")
-
     using iLQGames
     import iLQGames: dx
     using Plots
@@ -57,6 +57,8 @@ function parameterized_cost(θ::Vector)
     return costs
 end
 
+θ_true = [10, 2, 1, 4, 4, 2, 1]
+
 end
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
@@ -64,10 +66,10 @@ end
 # X: noise variance
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
-
+@everywhere begin
 GD_iter_num = 300
-num_clean_traj = 1
-noise_level_list = 0:0.005:0.0
+num_clean_traj = 10
+noise_level_list = 0:0.01:0.02
 num_noise_level = length(noise_level_list)
 num_obs = 10
 games = []
@@ -76,10 +78,11 @@ x0_set = [x0+0.5*(rand(8)-0.5*ones(8)) for ii in 1:num_clean_traj]
 
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 noisy_expert_traj_list = [[[zero(SystemTrajectory, g) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
-
-Threads.@threads for ii in 1:num_clean_traj
+end
+@sync @distributed for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         tmp = generate_noisy_observation(nx, nu, g, expert_traj_list[ii], noise_level_list[jj], num_obs)
+        println(tmp)
         for kk in 1:num_obs
             for t in 1:g.h
                 noisy_expert_traj_list[ii][jj][kk].x[t] = tmp[kk].x[t]
@@ -126,7 +129,7 @@ end
 # ii -> nominal traj, jj -> noise level, index -> information pattern
 mean_predictions = [zeros(num_noise_level) for index in 1:3]
 variance_predictions = [zeros(num_noise_level) for index in 1:3]
-for index in 1:3
+Threads.@threads for index in 1:3
     for jj in 1:num_noise_level
          
         mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))

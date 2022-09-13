@@ -21,6 +21,7 @@ using Distributed
     include("../src/diff_solver.jl")
     include("../src/inverse_game_solver.jl")
     include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+
 end
 
 
@@ -95,8 +96,8 @@ gif(anim2, "LQ_FB.gif", fps = 10)
 #-----------------------------------------------------------------------------------------------------------------------------------
 @everywhere begin
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[7]*x[1]^2 + θ[8]*x[2]^2 + θ[1]*x[3]^2 + θ[2]*x[4]^2 + θ[3]*(u[1]^2 + u[2]^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( θ[4]*(x[1]-x[3])^2 + θ[5]*(x[2]-x[4])^2 + θ[6]*(u[3]^2 + u[4]^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + θ[3]*(u[1]^2 + u[2]^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[4]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + θ[5]*(u[3]^2 + u[4]^2))))
     return costs
 end
 end
@@ -108,7 +109,7 @@ include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined ther
 
 GD_iter_num = 200
 n_data = 1
-θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
+θ_true = [0.0;2.0;1.0;0.0;2.0;1.0;]
 
 θ₀ = θ_true
 # 
@@ -194,23 +195,34 @@ savefig("LQ_comp_time_table.pdf")
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 300
-num_clean_traj = 1
-noise_level_list = 0:0.005:0.0
+include("experiment_utils.jl")
+
+GD_iter_num = 200
+num_clean_traj = 10
+noise_level_list = 0:0.01:0.04
 num_noise_level = length(noise_level_list)
 num_obs = 10
-games = []
+x0 = SVector(0, 1, 1,1)
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
-θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
+θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
 
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
-noisy_expert_traj_list = [[[zero(SystemTrajectory, g) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+player_inputs = (SVector(1,2), SVector(3,4))
+games, expert_traj_list, expert_equi_list, solvers, c_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, 
+    x0_set, ["FBNE_costate","OLNE_costate"], num_clean_traj)
+if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
+    @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
+end
+# c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
+noisy_expert_traj_list = [[[zero(SystemTrajectory, games[1]) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 
-Threads.@threads for ii in 1:num_clean_traj
+for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        tmp = generate_noisy_observation(nx, nu, g, expert_traj_list[ii], noise_level_list[jj], num_obs)
+        tmp = generate_noisy_observation(nx, nu, games[ii], expert_traj_list[ii], noise_level_list[jj], num_obs)
         for kk in 1:num_obs
-            for t in 1:g.h
+            for t in 1:game_horizon
                 noisy_expert_traj_list[ii][jj][kk].x[t] = tmp[kk].x[t]
                 noisy_expert_traj_list[ii][jj][kk].u[t] = tmp[kk].u[t]
             end
@@ -219,24 +231,24 @@ Threads.@threads for ii in 1:num_clean_traj
 end
 
 
-conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
-sol_table_list = deepcopy(conv_table_list)
-loss_table_list = deepcopy(conv_table_list)
-grad_table_list = deepcopy(conv_table_list)
-equi_table_list = deepcopy(conv_table_list)
-iter_table_list = deepcopy(conv_table_list)
-comp_time_table_list = deepcopy(conv_table_list)
+conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
+sol_table_list = deepcopy(conv_table_list);
+loss_table_list = deepcopy(conv_table_list);
+grad_table_list = deepcopy(conv_table_list);
+equi_table_list = deepcopy(conv_table_list);
+iter_table_list = deepcopy(conv_table_list);
+comp_time_table_list = deepcopy(conv_table_list);
 
-θ_list_list = deepcopy(conv_table_list)
-index_list_list = deepcopy(conv_table_list)
-optim_loss_list_list = deepcopy(conv_table_list)
+θ_list_list = deepcopy(conv_table_list);
+index_list_list = deepcopy(conv_table_list);
+optim_loss_list_list = deepcopy(conv_table_list);
 
 
-θ₀ = ones(8)
+θ₀ = ones(5);
 
 for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
+        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(games[ii],θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
@@ -255,33 +267,38 @@ end
 # ii -> nominal traj, jj -> noise level, index -> information pattern
 mean_predictions = [zeros(num_noise_level) for index in 1:3]
 variance_predictions = [zeros(num_noise_level) for index in 1:3]
-for index in 1:3
+for index in 1:3 # three information patterns
     for jj in 1:num_noise_level
         mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
         variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
     end
 end
 
-
-
-g1 = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-g2 = GeneralGame(game_horizon, player_inputs, iLQGames.LinearSystem{ΔT}(SMatrix{4,4}(rand(4,4)),SMatrix{4,4}(rand(4,4))), costs)
-
-
-# generalization to unseen initial state
-
-
-
-
+# --------------------------------------------------------------------------------------------------------------------------------
 # average computation time: FB, OL, Joint
+
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
 costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
 
+num_LQs = 10
+num_obs = 10
 
-games, expert_trajs, expert_equi, solvers, converged_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, [SVector{4}(0.0,1.0,1.0,1.0)], ["OLNE_costate","OLNE_costate"], 2, 1)
+games, expert_trajs, expert_equi, solvers, converged_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, [SVector{4}(0.0,1.0,1.0,1.0)], ["FBNE_costate","OLNE_costate"], 10, 10)
+
+
+
+# x1_OL, y1_OL = [expert_trajs[1].x[i][1] for i in 1:game_horizon], [expert_trajs[1].x[i][2] for i in 1:game_horizon];
+# x2_OL, y2_OL = [expert_trajs[1].x[i][3] for i in 1:game_horizon], [expert_trajs[1].x[i][4] for i in 1:game_horizon];
+# anim1 = @animate for i in 1:game_horizon
+#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-1, 2), ylims = (-1, 2))
+#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-1, 2), ylims = (-1, 2))
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "") 
+# end
+# gif(anim1, "test_LQ_OL.gif", fps = 10)
 
 
 

@@ -63,3 +63,14 @@ xindex(cs::LTISystem) = cs.xids
 Base.eltype(::Type{<:LTISystem{ΔT,nx,nu,TL}}) where {ΔT,nx,nu,TL} = TL
 Base.getindex(cs::LTISystem, i) = cs.dyn
 next_x(cs::LTISystem, xₖ::SVector, uₖ::SVector, ::Float64) = next_x(cs.dyn, xₖ, uₖ)
+function linearize_discrete(cs::LTISystem, x::SVector, u::SVector, t::AbstractFloat)
+    @assert issampled(cs) 
+    return cs.dyn
+end
+# linearize(ls::LTISystem, x::SVector, u::SVector, t::AbstractFloat) = ls
+
+# function discretize(ls::LTISystem{ΔT}, vt::Val{ΔT}) where ΔT
+#     # println("ok")
+#     return ls.dyn
+# end
+

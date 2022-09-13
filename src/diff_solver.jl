@@ -21,7 +21,8 @@ using iLQGames:
     n_controls,
     time_disc2cont,
     linearize_discrete,
-    regularize
+    regularize,
+    LinearizationStyle
 using Infiltrator
 using LinearAlgebra
 using StaticArrays
@@ -178,7 +179,10 @@ function lq_approximation(g, op, solver)
     lqs = map(eachindex(op.x), op.x, op.u) do k, x, u
         # discrete linearization along the operating point
         t = time_disc2cont(op, k)
+        @infiltrate
+        
         ldyn = linearize_discrete(dynamics(g), x, u, t)
+
         # quadratiation of the cost along the operating point
         qcost =
             map(player_costs(g)) do pc

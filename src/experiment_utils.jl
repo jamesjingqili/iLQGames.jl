@@ -32,7 +32,7 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
 end
 
 function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
-                                        max_GD_iteration_num::Int, parameterized_cost, equilibrium_type=[], Bayesian_belief_update=false, 
+                                        max_LineSearch_num::Int, parameterized_cost, equilibrium_type=[], Bayesian_belief_update=false, 
                                         specify_current_loss_and_solver=false, current_loss=[], current_traj=[], current_solver=[])
     α, θ_next, new_loss, new_traj, new_solver = 1.0, θ, 0.0, zero(SystemTrajectory, g), current_solver
     if Bayesian_belief_update==true
@@ -41,16 +41,22 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
     if specify_current_loss_and_solver == false
         current_loss, current_traj, current_str, current_solver = loss(θ,iLQGames.dynamics(g), equilibrium_type, expert_traj, false)
     end
-    # gradient_value = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
     gradient_value = ForwardDiff.gradient(x -> loss(x,iLQGames.dynamics(g), equilibrium_type, expert_traj, true, true, current_solver, current_traj), θ)
-    for iter in 1:max_GD_iteration_num
+    for iter in 1:max_LineSearch_num
         θ_next = θ-α*gradient_value
-        if dynamics == DoubleUnicycle()
-            while minimum(θ_next[[1,2,3,5,6,7]])<=-0.1
-                α = α*0.5^2
-                θ_next = θ-α*gradient_value
-            end
+        
+        while minimum(θ_next) <= -0.1
+            α = α*0.5^2
+            θ_next = θ-α*gradient_value
         end
+        # if dynamics == DoubleUnicycle()
+        #     while minimum(θ_next[[1,2,3,5,6,7]])<=-0.1
+        #         α = α*0.5^2
+        #         θ_next = θ-α*gradient_value
+        #     end
+        # end
+
+
         new_loss, new_traj, new_str, new_solver = loss(θ_next, iLQGames.dynamics(g),equilibrium_type, expert_traj, false)
         if new_loss < current_loss
             # println("Inverse Game Line Search Step Size: ", α)
@@ -58,7 +64,6 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
             break
         end
         α = α*0.5
-        # println("inverse game line search not well")
     end
     return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
 end
@@ -78,7 +83,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
     getting_stuck_in_local_solution_counter = 0
     for iter in 1:max_GD_iteration_num
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
-                                                                                g, expert_traj, x0, 10, 
+                                                                                g, expert_traj, x0, 20, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update)
         println("iteration: ", iter)
         println("current_loss: ", loss_values[iter+1])
@@ -91,17 +96,17 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
                 keep_non_progressing_counter = 0
             end
             
-            if loss_values[iter-1] - loss_values[iter] <1e-5 && loss_values[iter-2] - loss_values[iter-1] <1e-5
+            if loss_values[iter-1] - loss_values[iter] <1e-8 && loss_values[iter-2] - loss_values[iter-1] <1e-8
                 getting_stuck_in_local_solution_counter += 1
             else 
                 getting_stuck_in_local_solution_counter = 0
             end
 
-            if getting_stuck_in_local_solution_counter > 5 || keep_non_progressing_counter > 5
+            if getting_stuck_in_local_solution_counter > 3 || keep_non_progressing_counter > 3 || abs(loss_values[iter+1]-loss_values[iter])<1e-8
                 break
             end
         end
-        if loss_values[iter+1]<0.1
+        if loss_values[iter+1]<0.2 # convergence tolerence
             converged = true
             break
         end
@@ -298,6 +303,40 @@ function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, comp_time_table
 end
 
+
+function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs)
+    games, solvers,expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
+    for index in 1:num_LQs
+        if index <= 4
+            joint_dynamics = LTISystem(LinearSystem{ΔT}(SMatrix{4,4}(Matrix(1.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
+                SVector(1, 2, 3, 4))
+        else
+            joint_dynamics = LTISystem(LinearSystem{ΔT}(SMatrix{4,4}(rand(4,4)-0.5*ones(4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
+                SVector(1, 2, 3, 4))
+        end
+
+        game = GeneralGame(game_horizon,player_inputs, joint_dynamics, costs)
+        
+        if rand(1)[1]>0.5
+            equi = equilibrium_type_list[1]
+        else
+            equi = equilibrium_type_list[2]
+        end
+        solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
+        converged, traj, _ = solve(game, solver, x0_set[index])
+        push!(games, game)
+        push!(expert_trajs, traj)
+        push!(expert_equi, equi)
+        push!(solvers, solver)
+        push!(converged_expert, converged)
+    
+    end
+    return games, expert_trajs, expert_equi, solvers, converged_expert
+end
+
+
+
+
 # function generate_random_LQ_problem_and_traj(nx,nu,ΔT, x0_set, equilibrium_type_list, game_horizon, player_inputs, num_LQs, num_traj_per_LQ)
 #     games, solvers, expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
 #     costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
@@ -330,32 +369,35 @@ end
 # end
 
 
-function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs, num_traj_per_LQ)
-    games, solvers,expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
-    for index in 1:num_LQs
-        if index == 1
-            game = GeneralGame(game_horizon,player_inputs, LinearSystem{ΔT}(SMatrix{4,4}(Matrix(0.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), costs)
-        else
-            game = GeneralGame(game_horizon,player_inputs, LinearSystem{ΔT}(SMatrix{4,4}(rand(4,4)-0.5*ones(4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), costs)
-        end
-        for ii in 1:num_traj_per_LQ
-            if rand(1)[1]>0.5
-                equi = equilibrium_type_list[1]
-            else
-                equi = equilibrium_type_list[2]
-            end
-            @infiltrate
-            solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
-            converged, traj, _ = solve(game, solver, x0_set[ii])
-            push!(games, game)
-            push!(expert_trajs, traj)
-            push!(expert_equi, equi)
-            push!(solvers, solver)
-            push!(converged_expert, converged)
-        end
-    end
-    return games, expert_trajs, expert_equi, solvers, converged_expert
-end
+# function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs)
+#     games, solvers,expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
+#     for index in 1:num_LQs
+#         if index <= 4
+#             joint_dynamics = LTISystem(iLQGames.LinearSystem{ΔT}(SMatrix{4,4}(Matrix(1.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
+#                 [])
+#         else
+#             joint_dynamics = LTISystem(iLQGames.LinearSystem{ΔT}(SMatrix{4,4}(rand(4,4)-0.5*ones(4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
+#                 [])
+#         end
+
+#         game = GeneralGame(game_horizon,player_inputs, joint_dynamics, costs)
+#         for ii in 1:num_traj_per_LQ
+#             if rand(1)[1]>0.5
+#                 equi = equilibrium_type_list[1]
+#             else
+#                 equi = equilibrium_type_list[2]
+#             end
+#             solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equi)
+#             converged, traj, _ = solve(game, solver, x0_set[ii])
+#             push!(games, game)
+#             push!(expert_trajs, traj)
+#             push!(expert_equi, equi)
+#             push!(solvers, solver)
+#             push!(converged_expert, converged)
+#         end
+#     end
+#     return games, expert_trajs, expert_equi, solvers, converged_expert
+# end
 
 
 
