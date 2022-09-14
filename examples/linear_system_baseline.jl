@@ -201,9 +201,9 @@ include("experiment_utils.jl")
 
 GD_iter_num = 50
 num_clean_traj = 10
-noise_level_list = 0.02:0.02:0.04
+noise_level_list = 0.02:0.02:0.1
 num_noise_level = length(noise_level_list)
-num_obs = 5
+num_obs = 10
 x0 = SVector(0, 1, 1,1)
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
@@ -254,7 +254,7 @@ end
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(games[ii],θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)

@@ -63,7 +63,7 @@ end
 
 
 function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equilibrium_type=[], 
-                            Bayesian_update=false, max_LineSearch_num=15)
+                            Bayesian_update=false, max_LineSearch_num=15, tol_LineSearch = 1e-6)
     θ_dim = length(θ)
     sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
     sol[1] = θ
@@ -94,13 +94,13 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
                 keep_non_progressing_counter = 0
             end
             
-            if loss_values[iter-1] - loss_values[iter] <1e-6 && loss_values[iter-2] - loss_values[iter-1] <1e-6
+            if loss_values[iter-1] - loss_values[iter] <tol_LineSearch && loss_values[iter-2] - loss_values[iter-1] < tol_LineSearch
                 getting_stuck_in_local_solution_counter += 1
             else 
                 getting_stuck_in_local_solution_counter = 0
             end
 
-            if getting_stuck_in_local_solution_counter > 3 || keep_non_progressing_counter > 3 || abs(loss_values[iter+1]-loss_values[iter])<1e-6
+            if getting_stuck_in_local_solution_counter > 3 || keep_non_progressing_counter > 3 || abs(loss_values[iter+1]-loss_values[iter])<tol_LineSearch
                 break
             end
 
@@ -117,7 +117,7 @@ end
 
 # θ represents the initialization in gradient descent
 function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, parameterized_cost, 
-                                                max_GD_iteration_num, max_LineSearch_num=15, record_time=false, Bayesian_update=true,
+                                                max_GD_iteration_num, max_LineSearch_num=15, tol_LineSearch=1e-6, record_time=false, Bayesian_update=true,
                                                 all_equilibrium_types = ["FBNE_costate","OLNE_costate"])
     # In the returned table, the rows coresponding to Bayesian, FB, OL
     n_data = length(x0_set)
@@ -135,7 +135,7 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
         expert_traj = expert_traj_list[iter]
         if record_time==true    time_stamp = time()  end
         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter], consistent_information_pattern=objective_inference(x0,
-                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
+                                                                        θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num, tol_LineSearch)
         # @infiltrate
         if record_time==true    comp_time_table[1][iter] = time() - time_stamp  end
         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
@@ -148,7 +148,7 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
             else
                 if record_time==true    time_stamp = time()  end        
                 conv_table[index+1][iter], sol_table[index+1][iter], loss_table[index+1][iter], grad_table[index+1][iter], equi_table[index+1][iter],_=objective_inference(x0,
-                                                                    θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num)
+                                                                    θ,expert_traj,g,max_GD_iteration_num, all_equilibrium_types[index], false, max_LineSearch_num, tol_LineSearch)
                 if record_time==true    comp_time_table[index+1][iter] = time() - time_stamp  end
                 total_iter_table[index+1,iter] = iterations_taken_to_converge(equi_table[index+1][iter])
             end
