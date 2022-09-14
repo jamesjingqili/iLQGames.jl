@@ -201,7 +201,7 @@ include("experiment_utils.jl")
 
 GD_iter_num = 50
 num_clean_traj = 10
-noise_level_list = 0.02:0.02:0.06
+noise_level_list = 0.02:0.02:0.04
 num_noise_level = length(noise_level_list)
 num_obs = 5
 x0 = SVector(0, 1, 1,1)

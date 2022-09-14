@@ -136,11 +136,13 @@ function run_experiments_with_baselines(g, θ, x0_set, expert_traj_list, paramet
         if record_time==true    time_stamp = time()  end
         conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter], consistent_information_pattern=objective_inference(x0,
                                                                         θ,expert_traj,g,max_GD_iteration_num,"FBNE_costate", true, max_LineSearch_num)
+        @infiltrate
         if record_time==true    comp_time_table[1][iter] = time() - time_stamp  end
         total_iter_table[1,iter] = iterations_taken_to_converge(equi_table[1][iter])
         for index in 1:n_equi_types
-
-            if consistent_information_pattern==true && equi_table[1][iter] == all_equilibrium_types[index]
+            @infiltrate
+            if consistent_information_pattern==true && equi_table[1][iter][1] == all_equilibrium_types[index]
+                @infiltrate
                 conv_table[index+1][iter], sol_table[index+1][iter], loss_table[index+1][iter], grad_table[index+1][iter], equi_table[index+1][iter] = conv_table[1][iter], sol_table[1][iter], loss_table[1][iter], grad_table[1][iter], equi_table[1][iter]
                 
             else
