@@ -83,7 +83,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
         println("current_loss: ", loss_values[iter+1])
         println("equilibrium_type: ", equilibrium_type_list[iter])
         println("Current solution: ", sol[iter+1])
-        if iter >2 && equilibrium_type_list[iter-1] != equilibrium_type_list[iter]
+        if iter >1 && equilibrium_type_list[iter-1] != equilibrium_type_list[iter]
             consistent_information_pattern = false
         end
 
