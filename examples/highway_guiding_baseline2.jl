@@ -70,11 +70,11 @@ end
 
 GD_iter_num = 50
 num_clean_traj = 6
-noise_level_list = 0.02:0.02:0.2
+noise_level_list = 0.01:0.01:0.05
 num_noise_level = length(noise_level_list)
 num_obs = 6
 games = []
-x0_set = [x0+0.5*(rand(8)-0.5*ones(8)) for ii in 1:num_clean_traj]
+x0_set = [x0+0.3*rand(8).*[1;1;0;0;1;1;0;0] for ii in 1:num_clean_traj]
 # θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
@@ -93,7 +93,7 @@ end
     end
 end
 
-
+@everywhere begin
 conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 sol_table_list = deepcopy(conv_table_list);
 loss_table_list = deepcopy(conv_table_list);
@@ -107,12 +107,14 @@ index_list_list = deepcopy(conv_table_list);
 optim_loss_list_list = deepcopy(conv_table_list);
 
 
-θ₀ = ones(5);
+θ₀ = 2*ones(5);
 
-Threads.@threads for ii in 1:num_clean_traj
+end
+
+@sync @distributed for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 10)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)
@@ -132,11 +134,16 @@ mean_predictions = [zeros(num_noise_level) for index in 1:3]
 variance_predictions = [zeros(num_noise_level) for index in 1:3]
 Threads.@threads for index in 1:3
     for jj in 1:num_noise_level
-        mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
-        variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:num_clean_traj]))
+        mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:2]))
+        variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:2]))
     end
 end
 
 
 
+
+jldsave("highway_guiding_data_$(Dates.now())"; nx, nu, ΔT, g,dynamics, costs, player_inputs, x0, 
+    parameterized_cost, GD_iter_num, noise_level_list, num_clean_traj, num_obs, θ_true, θ₀, 
+    c_expert, expert_traj_list, expert_equi_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list)
 
