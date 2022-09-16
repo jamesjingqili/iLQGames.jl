@@ -52,12 +52,13 @@ solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibr
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-θ[2])^2 + θ[3]*(2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> (  θ[4]*(x[5] - x[1])^2 + θ[5]*(2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-θ[2])^2 + (2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+             FunctionPlayerCost((g, x, u, t) -> (  θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
     return costs
 end
 
-θ_true = [10, 1, 1, 4, 1]
+# θ_true = [10, 1, 1, 4, 1]
+θ_true = [10, 1, 4]
 
 end
 
@@ -74,7 +75,7 @@ noise_level_list = 0.01:0.01:0.05
 num_noise_level = length(noise_level_list)
 num_obs = 6
 games = []
-x0_set = [x0+0.3*rand(8).*[1;1;0;0;1;1;0;0] for ii in 1:num_clean_traj]
+x0_set = [x0+0.2*rand(8).*[1;1;0;0;1;1;0;0] for ii in 1:num_clean_traj]
 # θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
@@ -107,14 +108,14 @@ index_list_list = deepcopy(conv_table_list);
 optim_loss_list_list = deepcopy(conv_table_list);
 
 
-θ₀ = 2*ones(5);
+θ₀ = ones(3);
 
 end
 
 @sync @distributed for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 10)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15, 1e-7)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)
@@ -134,16 +135,18 @@ mean_predictions = [zeros(num_noise_level) for index in 1:3]
 variance_predictions = [zeros(num_noise_level) for index in 1:3]
 Threads.@threads for index in 1:3
     for jj in 1:num_noise_level
-        mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:2]))
-        variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:2]))
+        mean_predictions[index][jj] = mean(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:4]))
+        variance_predictions[index][jj] = var(reduce(vcat,[optim_loss_list_list[ii][jj][1][index] for ii in 1:4]))
     end
 end
 
 
+plot(noise_level_list, mean_predictions)
 
 
 jldsave("highway_guiding_data_$(Dates.now())"; nx, nu, ΔT, g,dynamics, costs, player_inputs, x0, 
     parameterized_cost, GD_iter_num, noise_level_list, num_clean_traj, num_obs, θ_true, θ₀, 
     c_expert, expert_traj_list, expert_equi_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
-    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list)
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list,
+    mean_predictions, variance_predictions)
 

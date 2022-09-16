@@ -44,7 +44,7 @@ include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined ther
 
 @everywhere begin
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 100
 # setup the dynamics
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
@@ -54,8 +54,12 @@ dynamics = LinearSystem()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+# costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+#          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-2*x[3])^2 + 2*(x[2]-2*x[4])^2 + u[1]^2 + u[2]^2)),
          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+
+
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
 # the horizon of the game
@@ -67,6 +71,7 @@ c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
+
 end
 
 x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
@@ -77,7 +82,7 @@ anim1 = @animate for i in 1:game_horizon
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "") 
 end
-gif(anim1, "LQ_OL.gif", fps = 10)
+gif(anim1, "LQ_OL_cycle.gif", fps = 10)
 
 
 
@@ -91,15 +96,79 @@ anim2 = @animate for i in 1:game_horizon
     plot!([1], seriestype = "vline", color = "black", label = "")
 end
 
-gif(anim2, "LQ_FB.gif", fps = 10)
+gif(anim2, "LQ_FB_cycle.gif", fps = 10)
+
+
+function plot_traj(expert_traj1, expert_traj2)
+    x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+    x2_OL, y2_OL = [expert_traj1.x[i][3] for i in 1:game_horizon], [expert_traj1.x[i][4] for i in 1:game_horizon];
+    anim1 = @animate for i in 1:game_horizon
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-1, 2), ylims = (-1, 2))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-1, 2), ylims = (-1, 2))
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "") 
+    end
+    gif(anim1, "LQ_OL_cycle_test.gif", fps = 10)
+
+    x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+    x2_FB, y2_FB = [expert_traj2.x[i][3] for i in 1:game_horizon], [expert_traj2.x[i][4] for i in 1:game_horizon];
+    anim2 = @animate for i in 1:game_horizon
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-1, 2), ylims = (-1, 2))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-1, 2), ylims = (-1, 2))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "")
+    end
+
+    gif(anim2, "LQ_FB_cycle_test.gif", fps = 10)
+end
+
+function scatter_plot_traj(expert_traj1, traj1, traj2)
+    x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+    x2_OL, y2_OL = [expert_traj1.x[i][3] for i in 1:game_horizon], [expert_traj1.x[i][4] for i in 1:game_horizon];
+    plot(1:length(x1_OL), x1_OL, color=:red, label="x1, OL, expert", linewidth = 5)
+    plot!(1:length(y1_OL), y1_OL, color=:blue, label="y1, OL, expert", linewidth = 5)
+    plot!(1:length(x2_OL), x2_OL, color=:orange, label="x2, OL, expert", linewidth = 5)
+    plot!(1:length(y2_OL), y2_OL, color=:green, label="x1, OL, expert", linewidth = 5)
+    x1_OL, y1_OL = [traj1.x[i][1] for i in 1:game_horizon], [traj1.x[i][2] for i in 1:game_horizon];
+    x2_OL, y2_OL = [traj1.x[i][3] for i in 1:game_horizon], [traj1.x[i][4] for i in 1:game_horizon];
+    plot!(1:length(x1_OL), x1_OL, color=:red, linestyle = :dot, label="x1, OL, inferred", linewidth = 5)
+    plot!(1:length(y1_OL), y1_OL, color=:blue, linestyle = :dot, label="y1, OL, inferred", linewidth = 5)
+    plot!(1:length(x2_OL), x2_OL, color=:orange, linestyle = :dot, label="x2, OL, inferred", linewidth = 5)
+    plot!(1:length(y2_OL), y2_OL, color=:green, linestyle = :dot, label="x1, OL, inferred", linewidth = 5)
+
+    # savefig("LQ_scatter_plot_OL.png")
+
+    # x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+    # x2_FB, y2_FB = [expert_traj2.x[i][3] for i in 1:game_horizon], [expert_traj2.x[i][4] for i in 1:game_horizon];
+    # plot(1:length(x1_FB), x1_FB, label="x1, FB, expert")
+    # plot!(1:length(y1_FB), y1_FB, label="y1, FB, expert")
+    # plot!(1:length(x2_FB), x2_FB, label="x2, FB, expert")
+    # plot!(1:length(y2_FB), y2_FB, label="x1, FB, expert")
+    x1_FB, y1_FB = [traj2.x[i][1] for i in 1:game_horizon], [traj2.x[i][2] for i in 1:game_horizon];
+    x2_FB, y2_FB = [traj2.x[i][3] for i in 1:game_horizon], [traj2.x[i][4] for i in 1:game_horizon];
+    plot!(1:length(x1_FB), x1_FB, color=:red, linestyle = :dash, label="x1, FB, inferred", linewidth = 5)
+    plot!(1:length(y1_FB), y1_FB, color=:blue, linestyle = :dash, label="y1, FB, inferred", linewidth = 5)
+    plot!(1:length(x2_FB), x2_FB, color=:orange, linestyle = :dash, label="x2, FB, inferred", linewidth = 5)
+    plot!(1:length(y2_FB), y2_FB, color=:green, linestyle = :dash, label="x1, FB, inferred", linewidth = 5)
+    plot!(size=(1200,800))
+    savefig("LQ_scatter_plot.pdf")
+end
 
 #-----------------------------------------------------------------------------------------------------------------------------------
 @everywhere begin
+# function parameterized_cost(θ::Vector)
+#     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + (u[1]^2 + u[2]^2))),
+#              FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + (u[3]^2 + u[4]^2))))
+#     return costs
+# end
+
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + θ[3]*(u[1]^2 + u[2]^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[4]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + θ[5]*(u[3]^2 + u[4]^2))))
-    return costs
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]-2*x[3])^2 + θ[2]*(x[2]-2*x[4])^2 + θ[3]*(u[1]^2 + u[2]^2))),
+            FunctionPlayerCost((g, x, u, t) -> ( θ[4]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + θ[5]*(u[3]^2 + u[4]^2))))
+
 end
+
+
 end
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -109,17 +178,24 @@ include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined ther
 
 GD_iter_num = 200
 n_data = 1
-θ_true = [0.0;2.0;1.0;0.0;2.0;1.0;]
+# θ_true = [0.0;2.0;1.0;0.0;2.0;1.0;]
 
-θ₀ = θ_true
+# θ₀ = θ_true
+θ_true = [2;2;1;2;1]
+θ₀ = [2;2;2;2;2]
 # 
 x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:n_data]
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
+c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["OLNE_costate","OLNE_costate"])
 
 
 conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
                                                                                                                         parameterized_cost, GD_iter_num, 15)
 
+
+θ_FB = [1.9884421591908286, 3.2391624289883465, 0.15149518944414228, 3.4415002901257186, 0.2617498232062528]
+θ_OL =  [0.7246248605358904, 2.7122010567272037, 2.2402531748493395, 3.3947084840934005, 0.7850678827238333]
+tmp1=loss(θ_FB, dynamics, "FBNE_costate", expert_traj_list[1], false)
+tmp2=loss(θ_OL, dynamics, "OLNE_costate", expert_traj_list[1], false)
 
 θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate(x0_set, ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
 

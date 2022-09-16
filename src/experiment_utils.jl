@@ -283,6 +283,8 @@ end
 
 
 
+
+
 # If the solution doesn't converge in run_experiments_with_baselines, then we can continue here
 # function continue_experiments_with_baseline(g, θ_list, x0_set, expert_traj_list, parameterized_cost, 
 #                                                 max_GD_iteration_num, max_LineSearch_num = 15, Bayesian_update=true,
