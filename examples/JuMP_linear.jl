@@ -32,8 +32,8 @@ dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
 dynamics = LinearSystem()
 
 
-costs = (FunctionPlayerCost((g, x, u, t) -> ( x[3]^2 + x[4]^2  + u[1]^2 + u[2]^2)),
-         FunctionPlayerCost((g, x, u, t) -> (   (x[1]-x[3])^2 + (x[2]-x[4])^2   + u[3]^2 + u[4]^2)))
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 1/2*(x[3]^2 + x[4]^2  + u[1]^2 + u[2]^2))),
+         FunctionPlayerCost((g, x, u, t) -> (   1/2*((x[1]-x[3])^2 + (x[2]-x[4])^2   + u[3]^2 + u[4]^2))))
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -93,25 +93,25 @@ model = Model(HiGHS.Optimizer)
 for ii in 1:length(player_inputs) # number of players is equal to length(player_inputs)
     for t in 1:g.h # for each time t within the game horizon
         if ii ==1
-            @constraint(model, 2*0*x[1,t] + λ[1,1,t] == 0)
-            @constraint(model, 2*0*x[2,t] + λ[1,2,t] == 0)
-            @constraint(model, 2*x[3,t] + λ[1,3,t] == 0)
-            @constraint(model, 2*x[4,t] + λ[1,4,t] == 0)
+            @constraint(model, θ[2]*x[1,t] + λ[1,1,t] == 0)
+            @constraint(model, θ[2]*x[2,t] + λ[1,2,t] == 0)
+            @constraint(model, θ[1]*x[3,t] + λ[1,3,t] == 0)
+            @constraint(model, θ[1]*x[4,t] + λ[1,4,t] == 0)
             
-            @constraint(model, 2*u[1,t] - λ[1,3,t]*ΔT == 0)
-            @constraint(model, 2*u[2,t] - λ[1,4,t]*ΔT == 0)
+            @constraint(model, u[1,t] - λ[1,1,t]*ΔT == 0)
+            @constraint(model, u[2,t] - λ[1,2,t]*ΔT == 0)
         else
-            @constraint(model, 2*θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] == 0)
-            @constraint(model, 2*θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] == 0)
-            @constraint(model, 2*θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] == 0)
-            @constraint(model, 2*θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] == 0)
+            @constraint(model, θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] == 0)
+            @constraint(model, θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] == 0)
+            @constraint(model, θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] == 0)
+            @constraint(model, θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] == 0)
             
-            @constraint(model, 2*u[3,t] - λ[2,3,t]*ΔT == 0)
-            @constraint(model, 2*u[4,t] - λ[2,4,t]*ΔT == 0)
+            @constraint(model, u[3,t] - λ[2,3,t]*ΔT == 0)
+            @constraint(model, u[4,t] - λ[2,4,t]*ΔT == 0)
         end
-        if t != g.h
-            set_start_value(x[ii,t], obs_x[ii,t+1])
-            set_start_value(u[ii,t], obs_u[ii,t])
+        if t == 1
+            # set_start_value(x[ii,t], obs_x[ii,t+1])
+            # set_start_value(u[ii,t], obs_u[ii,t])
             @constraint(model, x[:,1] .== Vector(x0) + ΔT * u[:,1])
         else
             @constraint(model, x[:,t] .== x[:,t-1] + ΔT * u[:,t])
