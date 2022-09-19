@@ -1,35 +1,29 @@
 using Distributed
-@everywhere begin
-    using Pkg
-    Pkg.activate("../")
-    Pkg.instantiate
-    using iLQGames
-    import iLQGames: dx
-    import BenchmarkTools
-    using Plots
-    using ForwardDiff
-    using iLQGames:
-        SystemTrajectory
-    # using iLQGames:
-    #     LinearSystem
-    using Infiltrator
-    using Optim
-    using LinearAlgebra
-    using Distributed
-    using Dates
-    using Statistics
-    using JuMP
-    include("../src/diff_solver.jl")
-    include("../src/inverse_game_solver.jl")
-    include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
+using Pkg
+Pkg.activate("../")
+Pkg.instantiate
+using iLQGames
+import iLQGames: dx
+import BenchmarkTools
+using Plots
+using ForwardDiff
+using iLQGames:
+    SystemTrajectory
+using Infiltrator
+using Optim
+using LinearAlgebra
+using Distributed
+using Dates
+using Statistics
+using JuMP
+using Ipopt
 
-end
+include("../src/diff_solver.jl")
+include("../src/inverse_game_solver.jl")
+include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
-
-
-@everywhere begin
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 100
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 20
 # setup the dynamics
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
@@ -37,13 +31,9 @@ dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
 
 dynamics = LinearSystem()
 
-# costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-         # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-# costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
-#          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-2*x[3])^2 + 2*(x[2]-2*x[4])^2 + u[1]^2 + u[2]^2)),
-         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
 
+costs = (FunctionPlayerCost((g, x, u, t) -> ( x[3]^2 + x[4]^2  + u[1]^2 + u[2]^2)),
+         FunctionPlayerCost((g, x, u, t) -> (   (x[1]-x[3])^2 + (x[2]-x[4])^2   + u[3]^2 + u[4]^2)))
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -57,123 +47,83 @@ c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
-end
-
-
-using JuMP
-import Ipopt
-import Test
-
-function example_rosenbrock()
-    model = Model(Ipopt.Optimizer)
-    set_silent(model)
-    @variable(model, x, start = 2)
-    @variable(model, y)
-    @NLobjective(model, Min, (1 - x)^2 + 100 * (y - x^2)^2)
-    @NLconstraint(model, x^2>=1)
-    optimize!(model)
-
-    Test.@test termination_status(model) == LOCALLY_SOLVED
-    Test.@test primal_status(model) == FEASIBLE_POINT
-    Test.@test objective_value(model) ≈ 0.0 atol = 1e-10
-    Test.@test value(x) ≈ 1.0
-    Test.@test value(y) ≈ 1.0
-    return
-end
-
-
-using JuMP
-using Ipopt
-model = Model(Ipopt.Optimizer)
-@variable(model, x[1:nx, 1:game_horizon])
-@variable(model, u[1:nu, 1:game_horizon])
-@variable(model, θ[1:5])
-@variable(model, λ[1:nx, 1:game_horizon])
-
-set_start_value(x, trajectory.x)
-set_start_value(u, trajectory.u)
-
-
-function construct_objective_unicycles(nx, nu, Δt, x0, parameterized_cost, player_inputs, g, x, u, t)
-
-    @NLobjective ...
-end
-
-function construct_objective_forward_game_unicycles()
-
-    @NLobjective ...
-end
 
 
 
-function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-1)^2  + (2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( θ[2]*(x[5]-0)^2+θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
+obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[t]) for t in 1:g.h])))
+
+# function example_rosenbrock()
+#     model = Model(Ipopt.Optimizer)
+#     set_silent(model)
+#     @variable(model, x, start = 2)
+#     @variable(model, y)
+#     @NLobjective(model, Min, (1 - x)^2 + 100 * (y - x^2)^2)
+#     @NLconstraint(model, x^2>=1)
+#     optimize!(model)
+#     Test.@test termination_status(model) == LOCALLY_SOLVED
+#     Test.@test primal_status(model) == FEASIBLE_POINT
+#     Test.@test objective_value(model) ≈ 0.0 atol = 1e-10
+#     Test.@test value(x) ≈ 1.0
+#     Test.@test value(y) ≈ 1.0
+#     return
+# end
+
+
+
+# ------------------------------------ Optimization problem begin ------------------------------------------- #
+function parameterized_cost(θ)
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[3]^2+x[4]^2) + θ[2]*(x[1]^2+x[2]^2) + u[1]^2 + u[2]^2)),
+             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + u[3]^2 + u[4]^2)))
     return costs
 end
+θ=[1,0,1]
 
-function construct_KKT_constraint_unicycles(nx, nu, Δt, x0, parameterized_cost, player_inputs, g)
-    # use the variables x ∈ R^nx*T, u ∈ R^nu*T, λ ∈ R^nx*T*N, θ ∈ R^3
-    for ii in length(player_inputs) # number of players is equal to length(player_inputs)
-        for t in 1:g.h
-            if ii ==1
-            @NLconstraint(model, dJdx1_t, 0 - λ[1,t] == 0)
-            @NLconstraint(model, dJdy1_t, 0 - λ[2,t] == 0)
-            @NLconstraint(model, dJdv1_t, 0 - λ[3,t] == 0)
-            @NLconstraint(model, dJdθ1_t, 4*(x[4,t]-1) - λ[4,t] == 0)
-            
-            @NLconstraint(model, dJdx2_t, 2*θ[1]*(x[5,t]-1) - λ[5,t] == 0)
-            @NLconstraint(model, dJdy2_t, 0 - λ[6,t] == 0)
-            @NLconstraint(model, dJdv2_t, 0 - λ[7,t] == 0)
-            @NLconstraint(model, dJdθ2_t, 0 - λ[8,t] == 0)
-            
-            @NLconstraint(model, dJdu1_t, 2*u[1,t] - λ[3,t]*Δt == 0)
-            @NLconstraint(model, dJdu2_t, 2*u[2,t] - λ[4,t]*Δt == 0)
+using JuMP
+using HiGHS
 
+model = Model(HiGHS.Optimizer)
+@variable(model, x[1:nx, 1:g.h])
+@variable(model, u[1:nu, 1:g.h])
+@variable(model, λ[1:2, 1:nx, 1:g.h])
+# @NLobjective(model, Min, norm(x[:,1:end-1]-obs_x[:,2:end])^2 + norm(u-obs_u)^2)
+
+@objective(model, Min, 0)
+
+for ii in 1:length(player_inputs) # number of players is equal to length(player_inputs)
+    for t in 1:g.h # for each time t within the game horizon
+        if ii ==1
+            @constraint(model, 2*0*x[1,t] + λ[1,1,t] == 0)
+            @constraint(model, 2*0*x[2,t] + λ[1,2,t] == 0)
+            @constraint(model, 2*x[3,t] + λ[1,3,t] == 0)
+            @constraint(model, 2*x[4,t] + λ[1,4,t] == 0)
+            
+            @constraint(model, 2*u[1,t] - λ[1,3,t]*ΔT == 0)
+            @constraint(model, 2*u[2,t] - λ[1,4,t]*ΔT == 0)
         else
-            @NLconstraint(model, dJdx1_t, 2*θ[3]*(x[1,t]-x[5,t]) - λ[nx+1,t] == 0)
-            @NLconstraint(model, dJdy1_t, 0 - λ[nx+2,t] == 0)
-            @NLconstraint(model, dJdv1_t, 0 - λ[nx+3,t] == 0)
-            @NLconstraint(model, dJdθ1_t, 0 - λ[nx+4,t] == 0)
+            @constraint(model, 2*θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] == 0)
+            @constraint(model, 2*θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] == 0)
+            @constraint(model, 2*θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] == 0)
+            @constraint(model, 2*θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] == 0)
             
-            @NLconstraint(model, dJdx2_t, 2*θ[2]*x[5,t] + 2*θ[3]*(x[5,t]-x[1,t]) - λ[nx+5,t] == 0)
-            @NLconstraint(model, dJdy2_t, 0 - λ[nx+6,t] == 0)
-            @NLconstraint(model, dJdv2_t, 0 - λ[nx+7,t] == 0)
-            @NLconstraint(model, dJdθ2_t, 4*(x[8,t]-1) - λ[nx+8,t] == 0)
-            
-            @NLconstraint(model, dJdu1_t, 2*u[3,t] - λ[nx+7,t]*Δt == 0)
-            @NLconstraint(model, dJdu2_t, 2*u[4,t] - λ[nx+8,t]*Δt == 0)
-            
-            @NLconstraint(model, dfdu1_t, Δt == 0)
-            @NLconstraint(model, dfdu2_t, Δt == 0)
-
+            @constraint(model, 2*u[3,t] - λ[2,3,t]*ΔT == 0)
+            @constraint(model, 2*u[4,t] - λ[2,4,t]*ΔT == 0)
         end
-            @NLconstraint(model, x[1,t+1] == x[1,t] + Δt * x[3,t]*cos(x[4,t]))
-            @NLconstraint(model, x[2,t+1] == x[2,t] + Δt * x[3,t]*sin(x[4,t]))
-            @NLconstraint(model, x[3,t+1] == x[3,t] + Δt * u[1,t])
-            @NLconstraint(model, x[4,t+1] == x[4,t] + Δt * u[2,t])
-            @NLconstraint(model, x[5,t+1] == x[5,t] + Δt * x[7,t]*cos(x[8,t]))
-            @NLconstraint(model, x[6,t+1] == x[6,y] + Δt * x[7,t]*cos(x[8,t]))
-            @NLconstraint(model, x[7,t+1] == x[7,t] + Δt * u[3,t])
-            @NLconstraint(model, x[8,t+1] == x[7,t] + Δt * u[4,t])
-            
-        end
+        if t != g.h
+            set_start_value(x[ii,t], obs_x[ii,t+1])
+            set_start_value(u[ii,t], obs_u[ii,t])
+            @constraint(model, x[:,1] .== Vector(x0) + ΔT * u[:,1])
+        else
+            @constraint(model, x[:,t] .== x[:,t-1] + ΔT * u[:,t])
+        end        
     end
-    # We attach the dynamics constraint below
-    for ii in length(parameterized_cost)
-        first_dynamics_constraint = [x0[1] + Δt * x0[3]*cos(x0[4]), 
-                                    x0[2] + Δt * x0[3]*sin(x0[4]),
-                                    x0[3] + Δt * u[nu*t+],
-                                    x0[4] + Δt * u[nu*t]]
-    end
-    for t in 0:g.h-1
-        x[nx*(t+1)+1] = x[nx*t] + Δt * x[nx*t+3] * cos(x[nx*t+4])
-        x[nx*(t+1)+2] = x[nx*t] + Δt * x[nx*t+3] * sin(x[nx*t+4])
-        x[nx*(t+1)+3] = s
-        x[nx*(t+1)+4] = 
-    end
-    @NLConstraint ...
 end
+
+optimize!(model)
+
+# ------------------------------------ Optimization problem end ------------------------------------------- #
+
+
 
 
 
