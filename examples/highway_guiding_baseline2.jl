@@ -35,7 +35,7 @@ dynamics = DoubleUnicycle()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 10*(x[5]-1)^2 + 2*(x[4]-1)^2 + u[1]^2 + u[2]^2 - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5]-1)^2 + 2*(x[4]-1)^2 + u[1]^2 + u[2]^2 - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + u[3]^2 + u[4]^2 - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
 
 # indices of inputs that each player controls
@@ -52,13 +52,13 @@ solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibr
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-θ[2])^2 + (2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> (  θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-1)^2  + (2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( θ[2]*(x[5]-0)^2+θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
     return costs
 end
 
 # θ_true = [10, 1, 1, 4, 1]
-θ_true = [10, 1, 4]
+θ_true = [4, 0, 4]
 
 end
 
@@ -108,14 +108,14 @@ index_list_list = deepcopy(conv_table_list);
 optim_loss_list_list = deepcopy(conv_table_list);
 
 
-θ₀ = ones(3);
+θ₀ = 2*ones(3);
 
 end
 
 @sync @distributed for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15, 1e-7)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 10, 1e-8)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)

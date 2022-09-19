@@ -34,7 +34,7 @@ end
 function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
                                         max_LineSearch_num::Int, parameterized_cost, equilibrium_type=[], Bayesian_belief_update=false, 
                                         specify_current_loss_and_solver=false, current_loss=[], current_traj=[], current_solver=[])
-    α, θ_next, new_loss, new_traj, new_solver = 1.0, θ, 0.0, zero(SystemTrajectory, g), current_solver
+    α, θ_next, new_loss, new_traj, new_solver = 2.0, θ, 0.0, zero(SystemTrajectory, g), current_solver
     if Bayesian_belief_update==true
         equilibrium_type = inverse_game_update_belief(θ, g, expert_traj, x0, parameterized_cost, "FBNE_costate", "OLNE_costate")
     end
