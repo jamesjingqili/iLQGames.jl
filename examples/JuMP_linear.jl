@@ -67,91 +67,67 @@ obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[t])
 #     return
 # end
 
-
-
-# ------------------------------------ Optimization problem begin ------------------------------------------- #
 function parameterized_cost(θ)
     costs = (FunctionPlayerCost((g, x, u, t) -> 1/2*( θ[1]*(x[3]^2+x[4]^2) + θ[2]*(x[1]^2+x[2]^2) + u[1]^2 + u[2]^2)),
              FunctionPlayerCost((g, x, u, t) -> 1/2*( θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + u[3]^2 + u[4]^2)))
     return costs
 end
 
-function L2NormSquared(x,y)
-    return norm(x-y,2)^2
-end
 
-function grad_L2NormSquared(x,y)
-    return 2*(x-y)
-end
+# ------------------------------------ Optimization problem begin ------------------------------------------- #
 
-θ=[1,0,1]
-using JuMP
-using Ipopt
-model = Model(Ipopt.Optimizer)
-@variable(model, x[1:nx, 1:g.h])
-@variable(model, u[1:nu, 1:g.h])
-@variable(model, λ[1:2, 1:nx, 1:g.h])
-@variable(model, θ[1:3])
+function OLNE_forward_LQ()
+    
+    model = Model(Ipopt.Optimizer)
+    @variable(model, x[1:nx, 1:g.h])
+    @variable(model, u[1:nu, 1:g.h])
+    @variable(model, λ[1:2, 1:nx, 1:g.h])
+    @variable(model, θ[1:3])
+    # @NLobjective(model, Min, sum(sum((x[:,1:end-1].-obs_x[:,2:end]).^2)) + sum(sum( (u.-obs_u).^2 )) )
+    # @objective(model, Min, 0)
 
-# @NLobjective(model, Min, sum(sum((x[:,1:end-1].-obs_x[:,2:end]).^2)) + sum(sum( (u.-obs_u).^2 )) )
-# @objective(model, Min, 0)
-ΔT = 0.1
-
-set_start_value(θ[1], 1)
-set_start_value(θ[2], 0)
-set_start_value(θ[3], 1)
-
-for t in 1:g.h-1
-    for ii in 1:nx
-        set_start_value(x[ii,t], obs_x[ii,t+1])
-    end
-end
-
-for t in 1:g.h
-    for ii in 1:nu
-        set_start_value(u[ii,t], obs_u[ii,t])
-    end
-end
-
-for ii in 1:length(player_inputs) # number of players is equal to length(player_inputs)
+    @objective(model, Min, sum(sum((x[ii,t] - obs_x[ii,t+1])^2 for ii in 1:nx ) for t in 1:game_horizon-1) 
+                        + sum(sum((u[ii,t] - obs_u[ii,t])^2 for ii in 1:nu) for t in 1:game_horizon) )
+    ΔT = 0.1
     for t in 1:g.h # for each time t within the game horizon
-        if ii ==1
-            if t != g.h
-                @NLconstraint(model, θ[2]*x[1,t] + λ[1,1,t] - λ[1,1,t+1] == 0)
-                @NLconstraint(model, θ[2]*x[2,t] + λ[1,2,t] - λ[1,2,t+1] == 0)
-                @NLconstraint(model, θ[1]*x[3,t] + λ[1,3,t] - λ[1,3,t+1] == 0)
-                @NLconstraint(model, θ[1]*x[4,t] + λ[1,4,t] - λ[1,4,t+1] == 0)
-            else
-                @NLconstraint(model, θ[2]*x[1,t] + λ[1,1,t] == 0)
-                @NLconstraint(model, θ[2]*x[2,t] + λ[1,2,t] == 0)
-                @NLconstraint(model, θ[1]*x[3,t] + λ[1,3,t] == 0)
-                @NLconstraint(model, θ[1]*x[4,t] + λ[1,4,t] == 0)
-            end                
-            @constraint(model, u[1,t] - λ[1,1,t]*ΔT == 0)
-            @constraint(model, u[2,t] - λ[1,2,t]*ΔT == 0)        
+        if t != g.h
+            @constraint(model, θ[2]*x[1,t] + λ[1,1,t] - λ[1,1,t+1] == 0)
+            @constraint(model, θ[2]*x[2,t] + λ[1,2,t] - λ[1,2,t+1] == 0)
+            @constraint(model, θ[1]*x[3,t] + λ[1,3,t] - λ[1,3,t+1] == 0)
+            @constraint(model, θ[1]*x[4,t] + λ[1,4,t] - λ[1,4,t+1] == 0)
         else
-            if t != g.h
-                @NLconstraint(model, θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] - λ[2,1,t+1] == 0)
-                @NLconstraint(model, θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] - λ[2,2,t+1] == 0)
-                @NLconstraint(model, θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] - λ[2,3,t+1] == 0)
-                @NLconstraint(model, θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] - λ[2,4,t+1] == 0)
-            else
-                @NLconstraint(model, θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] == 0)
-                @NLconstraint(model, θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] == 0)
-                @NLconstraint(model, θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] == 0)
-                @NLconstraint(model, θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] == 0)
-            end
-            @constraint(model, u[3,t] - λ[2,3,t]*ΔT == 0)
-            @constraint(model, u[4,t] - λ[2,4,t]*ΔT == 0)
+            @constraint(model, θ[2]*x[1,t] + λ[1,1,t] == 0)
+            @constraint(model, θ[2]*x[2,t] + λ[1,2,t] == 0)
+            @constraint(model, θ[1]*x[3,t] + λ[1,3,t] == 0)
+            @constraint(model, θ[1]*x[4,t] + λ[1,4,t] == 0)
+        end        
+
+        if t != g.h
+            @constraint(model, θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] - λ[2,1,t+1] == 0)
+            @constraint(model, θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] - λ[2,2,t+1] == 0)
+            @constraint(model, θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] - λ[2,3,t+1] == 0)
+            @constraint(model, θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] - λ[2,4,t+1] == 0)
+        else
+            @constraint(model, θ[3]*(x[1,t]-x[3,t]) + λ[2,1,t] == 0)
+            @constraint(model, θ[3]*(x[2,t]-x[4,t]) + λ[2,2,t] == 0)
+            @constraint(model, θ[3]*(x[3,t]-x[1,t]) + λ[2,3,t] == 0)
+            @constraint(model, θ[3]*(x[4,t]-x[2,t]) + λ[2,4,t] == 0)
         end
+        
+        @constraint(model, u[1,t] - λ[1,1,t]*ΔT == 0)
+        @constraint(model, u[2,t] - λ[1,2,t]*ΔT == 0)
+        @constraint(model, u[3,t] - λ[2,3,t]*ΔT == 0)
+        @constraint(model, u[4,t] - λ[2,4,t]*ΔT == 0)
         if t == 1
             @constraint(model, x[:,1] .== x0 + ΔT * u[:,t])
         else
             @constraint(model, x[:,t] .== x[:,t-1] + ΔT * u[:,t])
-        end        
+        end
     end
+    
+    optimize!(model)
+    return value.(x), value.(u), value.(θ)
 end
-optimize!(model)
 
 # ------------------------------------ Optimization problem end ------------------------------------------- #
 
