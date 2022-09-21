@@ -41,19 +41,19 @@ function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::
         equilibrium_type = inverse_game_update_belief(θ, g, expert_traj, x0, parameterized_cost, "FBNE_costate", "OLNE_costate")
     end
     if specify_current_loss_and_solver == false
-        current_loss, current_traj, current_str, current_solver = loss(θ,iLQGames.dynamics(g), equilibrium_type, expert_traj, false, 
+        current_loss, current_traj, current_str, current_solver = loss(θ,iLQGames.dynamics(g), equilibrium_type, expert_traj, false, false,[],[],
                                                                         obs_time_list = obs_time_list, obs_state_list = obs_state_list, obs_control_list = obs_control_list)
     end
     gradient_value = ForwardDiff.gradient(x -> loss(x,iLQGames.dynamics(g), equilibrium_type, expert_traj, true, true, current_solver, current_traj,
-                                                                        obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu), θ)
+                                                                        obs_time_list = obs_time_list, obs_state_list = obs_state_list, obs_control_list = obs_control_list), θ)
     for iter in 1:max_LineSearch_num
         θ_next = θ-α*gradient_value
         while minimum(θ_next) <= -0.1
             α = α*0.5^2
             θ_next = θ-α*gradient_value
         end
-        new_loss, new_traj, new_str, new_solver = loss(θ_next, iLQGames.dynamics(g),equilibrium_type, expert_traj, false,
-                                                        obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu)
+        new_loss, new_traj, new_str, new_solver = loss(θ_next, iLQGames.dynamics(g),equilibrium_type, expert_traj, false, false,[],[]
+                                                        obs_time_list = obs_time_list, obs_state_list = obs_state_list, obs_control_list = obs_control_list)
         if new_loss < current_loss
             # println("Inverse Game Line Search Step Size: ", α)
             return θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
@@ -134,7 +134,7 @@ function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_ite
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
                                                                                 g, expert_traj, x0, max_LineSearch_num, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update,
-                                                                                obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu)
+                                                                                obs_time_list = obs_time_list, obs_state_list = obs_state_list, obs_control_list = obs_control_list)
         println("iteration: ", iter)
         println("current_loss: ", loss_values[iter+1])
         # println("equilibrium_type: ", equilibrium_type_list[iter])
