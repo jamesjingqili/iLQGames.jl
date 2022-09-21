@@ -40,7 +40,7 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_KKT")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,0.5)
+x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,1)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_KKT")
@@ -82,14 +82,14 @@ end
 obs_x_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.x[t]) for t in 1:g.h])))
 obs_u_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.u[t]) for t in 1:g.h])))
 
-obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
-obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[t]) for t in 1:g.h])))
+obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
+obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[t]) for t in 1:g.h])))
 
 
 
 # ------------------------------------ Optimization problem begin ------------------------------------------- #
 
-function KKT_highway_forward_game_solve()
+function KKT_highway_forward_game_solve(  )
     θ=[4,0,4,0]
     model = Model(Ipopt.Optimizer)
     @variable(model, x[1:nx, 1:g.h])
@@ -178,7 +178,7 @@ function parameterized_cost(θ::Vector)
     return costs
 end
 # ------------------------------------ Optimization problem end ------------------------------------------- #
-function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ)
+function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, obs_time_list = 1:game_horizon-1, obs_state_index_list = [1,3,4,5,7,8], obs_control_index_list = [1,2,3,4])
     # θ=[4,0,4]
     model = Model(Ipopt.Optimizer)
     @variable(model, x[1:nx, 1:g.h])
@@ -190,9 +190,8 @@ function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ)
     set_start_value(θ[3], init_θ[3])
     set_start_value(θ[4], init_θ[4])
     # @objective(model, Min, 0)
-    @objective(model, Min, sum(sum((x[ii,t] - obs_x[ii,t])^2 for ii in 1:nx ) for t in 1:game_horizon-1) + sum(sum((u[ii,t] - obs_u[ii,t])^2 for ii in 1:nu) for t in 1:game_horizon) )
+    @objective(model, Min, sum(sum((x[ii,t] - obs_x[ii,t])^2 for ii in obs_state_index_list ) for t in obs_time_list) + sum(sum((u[ii,t] - obs_u[ii,t])^2 for ii in obs_control_index_list) for t in obs_time_list) )
     ΔT = 0.1
-
     for t in 1:g.h # for each time t within the game horizon
         if t != g.h # dJ1/dx
             @constraint(model,   λ[1,1,t] + 2*θ[4]*(x[1,t]-1)              - λ[1,1,t+1] == 0)
@@ -213,7 +212,6 @@ function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ)
             @NLconstraint(model, λ[1,7,t] == 0)
             @NLconstraint(model, λ[1,8,t] == 0)
         end
-
         if t != g.h # dJ2/dx
             @constraint(model,   λ[2,1,t] + 2*θ[3]*(x[1,t]-x[5,t])                   - λ[2,1,t+1] == 0)
             @constraint(model,   λ[2,2,t]                   - λ[2,2,t+1] == 0)
@@ -233,7 +231,6 @@ function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ)
             @NLconstraint(model, λ[2,7,t]  == 0)
             @NLconstraint(model, λ[2,8,t] + 4*(x[8,t]-1) == 0)
         end
-
         # dJ1/du and dJ2/du
         @constraint(model, 2*u[1,t] - λ[1,3,t]*ΔT == 0)
         @constraint(model, 2*u[2,t] - λ[1,4,t]*ΔT == 0)
@@ -275,10 +272,7 @@ anim1 = @animate for i in 1:game_horizon
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "") 
 end
-
 gif(anim1, "lane_guiding_JuMP.gif", fps = 10)
-
-
 
 anim2 = @animate for i in 1:game_horizon
     plot( [obs_x[1,i], obs_x[1,i]], [obs_x[2,i], obs_x[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
@@ -286,6 +280,5 @@ anim2 = @animate for i in 1:game_horizon
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "")
 end
-
 gif(anim2, "lane_guiding_OL_iLQ.gif", fps = 10)
 

@@ -276,10 +276,10 @@ include("experiment_utils.jl")
 @everywhere begin
 
 GD_iter_num = 50
-num_clean_traj = 10
+num_clean_traj = 1
 noise_level_list = 0.02:0.02:0.1
 num_noise_level = length(noise_level_list)
-num_obs = 10
+num_obs = 5
 x0 = SVector(0, 1, 1,1)
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
