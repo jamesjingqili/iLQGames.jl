@@ -23,17 +23,14 @@ include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 5
+nx, nu, ΔT, game_horizon = 5, 4, 0.1, 40
 # setup the dynamics
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
-dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
-
+dx(cs::LinearSystem, x, u, t) = SVector(u[1], u[2], u[3], u[4], 0)
 dynamics = LinearSystem()
-
-
-costs = (FunctionPlayerCost((g, x, u, t) -> 1/2*( (x[3]^2 + x[4]^2  + u[1]^2 + u[2]^2))),
-         FunctionPlayerCost((g, x, u, t) -> 1/2*(   ((x[1]-x[3])^2 + (x[2]-x[4])^2   + u[3]^2 + u[4]^2))))
+costs = (FunctionPlayerCost((g, x, u, t) -> 1/2*( ((x[3]-x[5])^2 + x[4]^2  + u[1]^2 + u[2]^2))),
+         FunctionPlayerCost((g, x, u, t) -> 1/2*( ((x[1]-x[3])^2 + (x[2]-x[4])^2   + u[3]^2 + u[4]^2))))
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -41,11 +38,31 @@ player_inputs = (SVector(1,2), SVector(3,4))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(0, 1, 1,1)
+x0 = SVector(0, 1, 1,1, 0.7)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
+
+x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+x2_OL, y2_OL = [expert_traj1.x[i][3] for i in 1:game_horizon], [expert_traj1.x[i][4] for i in 1:game_horizon];
+anim1 = @animate for i in 1:game_horizon
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-1, 2), ylims = (-1, 2))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-1, 2), ylims = (-1, 2))
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "") 
+end
+gif(anim1, "LQ_OL_moving_target.gif", fps = 10)
+x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+x2_FB, y2_FB = [expert_traj2.x[i][3] for i in 1:game_horizon], [expert_traj2.x[i][4] for i in 1:game_horizon];
+anim2 = @animate for i in 1:game_horizon
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-1, 2), ylims = (-1, 2))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-1, 2), ylims = (-1, 2))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "")
+end
+gif(anim2, "LQ_FB_moving_target_07.gif", fps = 10)
+
 
 
 obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
