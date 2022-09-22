@@ -274,6 +274,22 @@ include("experiment_utils.jl")
 
 @everywhere begin
 
+function parameterized_cost(θ::Vector)
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + (u[1]^2 + u[2]^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + (u[3]^2 + u[4]^2))))
+    return costs
+end
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+dynamics = LTISystem(LinearSystem{ΔT}(SMatrix{4,4}(Matrix(1.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
+                SVector(1, 2, 3, 4))
+player_inputs = (SVector(1,2), SVector(3,4))
+game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+
+
+solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
+
 GD_iter_num = 100
 num_clean_traj = 40
 noise_level_list = 0.01:0.01:0.1
@@ -281,25 +297,24 @@ num_noise_level = length(noise_level_list)
 num_obs = 20
 x0 = SVector(0, 1, 1,1)
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
-θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
+# θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
 
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
-         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
-player_inputs = (SVector(1,2), SVector(3,4))
-games, expert_traj_list, expert_equi_list, solvers, c_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, 
-    x0_set, ["FBNE_costate","FBNE_costate"], num_clean_traj)
+# nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
+# costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
+#          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+# player_inputs = (SVector(1,2), SVector(3,4))
+expert_traj_list, c_expert = generate_expert_traj(game, solver, x0_set, num_clean_traj)
 if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
     @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
 end
 # c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
-noisy_expert_traj_list = [[[zero(SystemTrajectory, games[1]) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
+noisy_expert_traj_list = [[[zero(SystemTrajectory, game) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 
 end
 
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        tmp = generate_noisy_observation(nx, nu, games[ii], expert_traj_list[ii], noise_level_list[jj], num_obs)
+        tmp = generate_noisy_observation(nx, nu, game, expert_traj_list[ii], noise_level_list[jj], num_obs)
         for kk in 1:num_obs
             for t in 1:game_horizon
                 noisy_expert_traj_list[ii][jj][kk].x[t] = tmp[kk].x[t]
@@ -333,7 +348,7 @@ Threads.@threads for ii in 1:num_clean_traj
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
                                                                                                 1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.01)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
-        state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(games[ii]), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
+        state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
                                             1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
         push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
         push!(conv_table_list[ii][jj], conv_table)

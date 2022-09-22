@@ -420,7 +420,7 @@ end
 # end
 
 
-function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs)
+function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x0_set, equilibrium_type_list, num_LQs=1)
     games, solvers,expert_trajs, expert_equi, converged_expert,  = [], [], [], [], [] 
     for index in 1:num_LQs
         if index <= 4
@@ -450,7 +450,15 @@ function generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, x
     return games, expert_trajs, expert_equi, solvers, converged_expert
 end
 
-
+function generate_expert_traj(game, solver, x0_set, num_trajs=1)
+    expert_trajs, converged_expert  = [], [] 
+    for index in 1:num_trajs        
+        converged, traj, _ = solve(game, solver, x0_set[index])
+        push!(expert_trajs, traj)
+        push!(converged_expert, converged)
+    end
+    return expert_trajs, converged_expert
+end
 
 
 # function generate_random_LQ_problem_and_traj(nx,nu,ΔT, x0_set, equilibrium_type_list, game_horizon, player_inputs, num_LQs, num_traj_per_LQ)
