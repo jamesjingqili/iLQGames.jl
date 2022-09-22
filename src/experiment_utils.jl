@@ -121,7 +121,7 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
 end
 
 function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_iteration_num, equilibrium_type = "FBNE",
-                            Bayesian_update=false, max_LineSearch_num=15, tol_LineSearch = 1e-6, obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu)
+                            Bayesian_update=false, max_LineSearch_num=15, tol_LineSearch = 1e-6, obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, convergence_tol = 0.01)
     θ_dim = length(θ)
     sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
     sol[1] = θ
@@ -137,7 +137,7 @@ function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_ite
         # @infiltrate
         sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = inverse_game_gradient_descent(sol[iter], 
                                                                                 g, expert_traj, x0, max_LineSearch_num, 
-                                                                                parameterized_cost, "FBNE_costate", Bayesian_update, false, [], [],[], 
+                                                                                parameterized_cost, equilibrium_type, Bayesian_update, false, [], [],[], 
                                                                                 obs_time_list, obs_state_list, obs_control_list)
         println("iteration: ", iter)
         println("current_loss: ", loss_values[iter+1])
@@ -165,7 +165,7 @@ function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_ite
             end
 
         end
-        if loss_values[iter+1]<0.2 # convergence tolerence
+        if loss_values[iter+1]<convergence_tol || abs(loss_values[iter+1] - loss_values[iter])<convergence_tol  # convergence tolerence
             converged = true
             break
         end
@@ -220,7 +220,7 @@ end
 # θ represents the initialization in gradient descent
 function run_experiment(g, θ, x0_set, expert_traj_list, parameterized_cost, 
                         max_GD_iteration_num, max_LineSearch_num=15, tol_LineSearch=1e-6,
-                        obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu)
+                        obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, equilibrium_type = "FBNE_costate", convergence_tol=0.01)
     n_data = length(x0_set)
     sol_table  = [[] for jj in 1:n_data]
     grad_table = [[] for jj in 1:n_data]
@@ -234,8 +234,8 @@ function run_experiment(g, θ, x0_set, expert_traj_list, parameterized_cost,
         x0 = x0_set[iter]
         expert_traj = expert_traj_list[iter]
         conv_table[iter], sol_table[iter], loss_table[iter], grad_table[iter], equi_table[iter], consistent_information_pattern = objective_inference_with_partial_obs(x0,
-                                                                        θ, expert_traj, g, max_GD_iteration_num, "FBNE_costate",false, max_LineSearch_num, tol_LineSearch,
-                                                                        obs_time_list, obs_state_list, obs_control_list)
+                                                                        θ, expert_traj, g, max_GD_iteration_num, equilibrium_type,false, max_LineSearch_num, tol_LineSearch,
+                                                                        obs_time_list, obs_state_list, obs_control_list, convergence_tol)
         total_iter_table[iter] = iterations_taken_to_converge(equi_table[iter])
     end
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, []

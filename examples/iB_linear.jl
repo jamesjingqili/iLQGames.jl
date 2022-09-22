@@ -372,47 +372,6 @@ for index in 1:1 # three information patterns
 end
 
 plot(noise_level_list, mean_predictions1, ribbons=(variance_predictions1, variance_predictions1))
+plot!(xlabel="noise variance", ylabel="loss")
 
 
-
-# --------------------------------------------------------------------------------------------------------------------------------
-# average computation time: FB, OL, Joint
-
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
-         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
-# indices of inputs that each player controls
-player_inputs = (SVector(1,2), SVector(3,4))
-
-num_LQs = 10
-num_obs = 10
-
-games, expert_trajs, expert_equi, solvers, converged_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, [SVector{4}(0.0,1.0,1.0,1.0)], ["FBNE_costate","OLNE_costate"], 10, 10)
-
-
-
-# x1_OL, y1_OL = [expert_trajs[1].x[i][1] for i in 1:game_horizon], [expert_trajs[1].x[i][2] for i in 1:game_horizon];
-# x2_OL, y2_OL = [expert_trajs[1].x[i][3] for i in 1:game_horizon], [expert_trajs[1].x[i][4] for i in 1:game_horizon];
-# anim1 = @animate for i in 1:game_horizon
-#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-1, 2), ylims = (-1, 2))
-#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-1, 2), ylims = (-1, 2))
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "") 
-# end
-# gif(anim1, "test_LQ_OL.gif", fps = 10)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-"Accelerated GD?"
