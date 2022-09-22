@@ -165,7 +165,7 @@ function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_ite
             end
 
         end
-        if loss_values[iter+1]<convergence_tol || abs(loss_values[iter+1] - loss_values[iter])<convergence_tol  # convergence tolerence
+        if loss_values[iter+1]<convergence_tol || abs(loss_values[iter+1] - loss_values[iter])<convergence_tol*0.01  # convergence tolerence
             converged = true
             break
         end
