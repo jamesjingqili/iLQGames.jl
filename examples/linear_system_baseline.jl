@@ -54,10 +54,10 @@ dynamics = LinearSystem()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-# costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
-#          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-2*x[3])^2 + 2*(x[2]-2*x[4])^2 + u[1]^2 + u[2]^2)),
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
+# costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-2*x[3])^2 + 2*(x[2]-2*x[4])^2 + u[1]^2 + u[2]^2)),
+#          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
 
 
 # indices of inputs that each player controls
@@ -156,17 +156,16 @@ end
 
 #-----------------------------------------------------------------------------------------------------------------------------------
 @everywhere begin
-# function parameterized_cost(θ::Vector)
-#     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + (u[1]^2 + u[2]^2))),
-#              FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + (u[3]^2 + u[4]^2))))
-#     return costs
-# end
-
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]-2*x[3])^2 + θ[2]*(x[2]-2*x[4])^2 + θ[3]*(u[1]^2 + u[2]^2))),
-            FunctionPlayerCost((g, x, u, t) -> ( θ[4]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + θ[5]*(u[3]^2 + u[4]^2))))
-
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + (u[1]^2 + u[2]^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + (u[3]^2 + u[4]^2))))
+    return costs
 end
+
+# function parameterized_cost(θ::Vector)
+#     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]-2*x[3])^2 + θ[2]*(x[2]-2*x[4])^2 + θ[3]*(u[1]^2 + u[2]^2))),
+#             FunctionPlayerCost((g, x, u, t) -> ( θ[4]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + θ[5]*(u[3]^2 + u[4]^2))))
+# end
 
 
 end
@@ -289,7 +288,7 @@ costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 +
          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
 player_inputs = (SVector(1,2), SVector(3,4))
 games, expert_traj_list, expert_equi_list, solvers, c_expert = generate_LQ_problem_and_traj(game_horizon, ΔT, player_inputs, costs, 
-    x0_set, ["FBNE_costate","OLNE_costate"], num_clean_traj)
+    x0_set, ["FBNE_costate","FBNE_costate"], num_clean_traj)
 if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
     @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
 end
@@ -329,9 +328,9 @@ end
 
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiments_with_baselines(games[ii],θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8)
-        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
+        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiment(games[ii],θ₀,[x0_set[ii] for kk in 1:num_obs], 
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 1:game_horizon-1)
+        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)
         push!(loss_table_list[ii][jj], loss_table)
