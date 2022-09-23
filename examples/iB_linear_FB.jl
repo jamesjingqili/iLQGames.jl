@@ -172,95 +172,11 @@ end
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
-
-
-GD_iter_num = 200
-n_data = 1
-# θ_true = [0.0;2.0;1.0;0.0;2.0;1.0;]
-
-# θ₀ = θ_true
-θ_true = [2;2;1;2;1]
-θ₀ = [2;2;2;2;2]
-# 
-x0_set = [x0+0*(rand(4)-0.5*ones(4)) for ii in 1:n_data]
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["OLNE_costate","OLNE_costate"])
-
-
-conv_table, sol_table, loss_table, grad_table, equi_table, iter_table,comp_time_table=run_experiments_with_baselines(g, θ₀, x0_set, expert_traj_list, 
-                                                                                                                        parameterized_cost, GD_iter_num, 15)
-
-
-θ_FB = [1.9884421591908286, 3.2391624289883465, 0.15149518944414228, 3.4415002901257186, 0.2617498232062528]
-θ_OL =  [0.7246248605358904, 2.7122010567272037, 2.2402531748493395, 3.3947084840934005, 0.7850678827238333]
-tmp1=loss(θ_FB, dynamics, "FBNE_costate", expert_traj_list[1], false)
-tmp2=loss(θ_OL, dynamics, "OLNE_costate", expert_traj_list[1], false)
-
-θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate(x0_set, ["FBNE_costate","OLNE_costate"], sol_table, loss_table, equi_table)
-
-
-
-iterations_BA,iterations_FB,iteration_OL=iterations_taken_to_converge(equi[1][1]),iterations_taken_to_converge(equi[2][1]),iterations_taken_to_converge(equi[3][1])
-
-
-
-jldsave("LQ_data_$(Dates.now())"; nx, nu, ΔT, g,dynamics, costs, player_inputs, solver1, x0, c1, expert_traj1, strategies1, 
-    solver2, c2, expert_traj2, strategies2, parameterized_cost, GD_iter_num, n_data, θ_true, θ₀, 
-    c_expert, expert_traj_list, expert_equi_list, conv_table, sol_table, loss_table, grad_table, 
-    equi_table, iter_table, comp_time_table, θ_list, index_list, optim_loss_list)
 
 
 
 
 
-
-"Experiment 1: Without noitse. Histogram"
-#  X: number of cases
-# Y1: state prediction loss. Code: loss(θ, equilibrium_type, expert_traj, false)
-# Y2: generalization loss.   Code: generalization_loss()
-# Y3: computation time/GD iterations taken to converge.
-
-# (1) filter out the converged example here:
-num_converged = sum(conv_table[1].*conv_table[2].*conv_table[3])
-time_list = [[0.0 for ii in 1:num_converged] for index in 1:3]
-time_list_index = zeros(num_converged)
-jj = 1
-for ii in 1:n_data
-    if conv_table[1][ii].*conv_table[2][ii].*conv_table[3][ii] == 1
-        time_list[1][jj] = comp_time_table[1][ii]
-        time_list[2][jj] = comp_time_table[2][ii]
-        time_list[3][jj] = comp_time_table[3][ii]
-        time_list_index[jj] = ii
-        jj = jj+1
-    end
-end
-
-histogram(time_list[1], bins = (0:1:80), alpha=0.5, label = "Bayesian")
-histogram!(time_list[2], bins = (0:1:80), alpha=0.5, label = "pure FB")
-histogram!(time_list[3], bins = (0:1:80), alpha=0.5, label = "pure OL")
-savefig("LQ_comp_time_table1.pdf")
-
-
-bins = 0:2:100.0
-transformed_comp_time_table = deepcopy(comp_time_table)
-for index in 1:3
-    for ii in n_data
-        if comp_time_table[index][ii] > bins[end]
-            transformed_comp_time_table[index][ii] = bins[end]-1e-6
-        end
-    end
-end
-
-
-histogram(transformed_comp_time_table[1], bins=bins, alpha=0.5, label = "Bayesian")
-histogram!(transformed_comp_time_table[2], bins=bins, alpha=0.5, label = "pure FB")
-histogram!(transformed_comp_time_table[3], bins=bins, alpha=0.5, label = "pure OL")
-savefig("LQ_comp_time.pdf")
-
-histogram(comp_time_table[1], bins = (0:10:300), alpha=0.5, label = "Bayesian")
-histogram!(comp_time_table[2], bins = (0:10:300), alpha=0.5, label = "pure FB")
-histogram!(comp_time_table[3], bins = (0:10:300), alpha=0.5, label = "pure OL")
-savefig("LQ_comp_time_table.pdf")
 
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -296,7 +212,7 @@ noise_level_list = 0.01:0.01:0.1
 num_noise_level = length(noise_level_list)
 num_obs = 10
 x0 = SVector(0, 1, 1,1)
-x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
+x0_set = [x0+0.2*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 # θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]
 
 # nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
@@ -376,6 +292,10 @@ end
 
 plot(noise_level_list, mean_predictions, ribbons=(variance_predictions, variance_predictions))
 
+
+for jj in num_noise_level
+    plot(noise_level_list, state_prediction_error_list_list)
+end
 
 mean_predictions1 = [zeros(num_noise_level) for index in 1:1]
 variance_predictions1 = [zeros(num_noise_level) for index in 1:1]
