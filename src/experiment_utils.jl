@@ -7,7 +7,10 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
         nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
         nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)
         nominal_converged, nominal_traj, nominal_strategies = solve(nominal_game, nominal_solver, x0)
-        loss_value = norm(nominal_traj.x - expert_traj.x)^2 + norm(nominal_traj.u-expert_traj.u)^2
+
+        loss_value = norm([nominal_traj.x[t][obs_state_list] for t in obs_time_list] - [expert_traj.x[t][obs_state_list] for t in obs_time_list])^2 + 
+                     norm([nominal_traj.u[t][obs_control_list] for t in obs_time_list] - [expert_traj.u[t][obs_control_list] for t in obs_time_list])^2
+        
         return loss_value, nominal_traj, nominal_strategies, nominal_solver
     else
         if specified_solver_and_traj == false
@@ -32,6 +35,49 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
         return loss_value
     end
 end
+
+function multi_loss(n_traj, θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
+                nominal_solver=[], nominal_traj=[], obs_time_list = [1:game_horizon-1 for ii in 1:n_traj], 
+                obs_state_list = [1:nx for ii in 1:n_traj], obs_control_list = [1:nu for ii in 1:n_traj]) 
+    nominal_converged = [[] for ii in 1:n_traj]
+    nominal_traj = [[] for ii in 1:n_traj]
+    nominal_strategies = [[] for ii in 1:n_traj]
+    if gradient_mode == false    
+        nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
+        nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)        
+        loss_value = 0
+        for iter in 1:n_traj
+            nominal_converged[iter], nominal_traj[iter], nominal_strategies[iter] = solve(nominal_game, nominal_solver, first(expert_traj[iter].x))
+            loss_value += norm([nominal_traj[iter].x[t][obs_state_list[iter]] for t in obs_time_list[iter]] - [expert_traj[iter].x[t][obs_state_list[iter]] for t in obs_time_list[iter]])^2 + 
+                     norm([nominal_traj[iter].u[t][obs_control_list[iter]] for t in obs_time_list[iter]] - [expert_traj[iter].u[t][obs_control_list[iter]] for t in obs_time_list[iter]])^2
+        end
+        return loss_value, nominal_traj, nominal_strategies, nominal_solver
+    else
+        if specified_solver_and_traj == false
+            nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
+            nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)        
+            for iter in 1:n_trajs
+                nominal_converged[iter], nominal_traj[iter], nominal_strategies[iter] = solve(nominal_game, nominal_solver, first(expert_traj[iter].x))
+            end
+        end
+        costs = parameterized_cost(θ)
+        game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+
+        lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
+        if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
+            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+        elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
+            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+        else
+            @warn "equilibrium_type is wrong!"
+        end
+        @infiltrate
+        loss_value = norm([traj.x[t][obs_state_list] for t in obs_time_list] - [expert_traj.x[t][obs_state_list] for t in obs_time_list])^2 + 
+                     norm([traj.u[t][obs_control_list] for t in obs_time_list] - [expert_traj.u[t][obs_control_list] for t in obs_time_list])^2
+        return loss_value
+    end
+end
+
 
 function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
                                         max_LineSearch_num::Int, parameterized_cost, equilibrium_type=[], Bayesian_belief_update=false, 
@@ -121,7 +167,9 @@ function objective_inference(x0, θ, expert_traj, g, max_GD_iteration_num, equil
 end
 
 function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_iteration_num, equilibrium_type = "FBNE",
-                            Bayesian_update=false, max_LineSearch_num=15, tol_LineSearch = 1e-6, obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, convergence_tol = 0.01)
+                            Bayesian_update=false, max_LineSearch_num=15, tol_LineSearch = 1e-6, 
+                            obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, 
+                            convergence_tol = 0.01, terminate_when_small_progress = true)
     θ_dim = length(θ)
     sol = [zeros(θ_dim) for iter in 1:max_GD_iteration_num+1]
     sol[1] = θ
@@ -165,9 +213,16 @@ function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_ite
             end
 
         end
-        if loss_values[iter+1]<convergence_tol || abs(loss_values[iter+1] - loss_values[iter])<convergence_tol*0.01  # convergence tolerence
-            converged = true
-            break
+        if terminate_when_small_progress == true
+            if loss_values[iter+1]<convergence_tol || abs(loss_values[iter+1] - loss_values[iter])<convergence_tol*0.01  # convergence tolerence
+                converged = true
+                break
+            end
+        else
+            if loss_values[iter+1]<convergence_tol
+                converged = true
+                break
+            end
         end
 
     end
@@ -220,7 +275,7 @@ end
 # θ represents the initialization in gradient descent
 function run_experiment(g, θ, x0_set, expert_traj_list, parameterized_cost, 
                         max_GD_iteration_num, max_LineSearch_num=15, tol_LineSearch=1e-6,
-                        obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, equilibrium_type = "FBNE_costate", convergence_tol=0.01)
+                        obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, equilibrium_type = "FBNE_costate", convergence_tol=0.01, terminate_when_small_progress=true)
     n_data = length(x0_set)
     sol_table  = [[] for jj in 1:n_data]
     grad_table = [[] for jj in 1:n_data]
@@ -235,7 +290,7 @@ function run_experiment(g, θ, x0_set, expert_traj_list, parameterized_cost,
         expert_traj = expert_traj_list[iter]
         conv_table[iter], sol_table[iter], loss_table[iter], grad_table[iter], equi_table[iter], consistent_information_pattern = objective_inference_with_partial_obs(x0,
                                                                         θ, expert_traj, g, max_GD_iteration_num, equilibrium_type,false, max_LineSearch_num, tol_LineSearch,
-                                                                        obs_time_list, obs_state_list, obs_control_list, convergence_tol)
+                                                                        obs_time_list, obs_state_list, obs_control_list, convergence_tol, terminate_when_small_progress)
         total_iter_table[iter] = iterations_taken_to_converge(equi_table[iter])
     end
     return conv_table, sol_table, loss_table, grad_table, equi_table, total_iter_table, []

@@ -23,7 +23,7 @@ include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 5
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 10
 # setup the dynamics
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
@@ -76,7 +76,7 @@ end
 
 # ------------------------------------ Optimization problem begin ------------------------------------------- #
 
-function OLNE_forward_LQ(init_x, init_u)
+function OLNE_forward_LQ()
     model = Model(Ipopt.Optimizer)
     @variable(model, x[1:nx, 1:game_horizon])
     @variable(model, u[1:nu, 1:game_horizon])
@@ -127,7 +127,7 @@ function OLNE_forward_LQ(init_x, init_u)
     end
     
     optimize!(model)
-    return value.(x), value.(u), value.(θ)
+    return value.(x), value.(u), value.(θ), model
 end
 
 
