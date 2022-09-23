@@ -291,10 +291,10 @@ game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 
 GD_iter_num = 100
-num_clean_traj = 40
+num_clean_traj = 10
 noise_level_list = 0.01:0.01:0.1
 num_noise_level = length(noise_level_list)
-num_obs = 20
+num_obs = 10
 x0 = SVector(0, 1, 1,1)
 x0_set = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_clean_traj]
 # θ_true = [0.0;2.0;1.0;0.0; 2.0;1.0]

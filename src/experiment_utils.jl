@@ -26,7 +26,7 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
         else
             @warn "equilibrium_type is wrong!"
         end
-        # @infiltrate
+        @infiltrate
         loss_value = norm([traj.x[t][obs_state_list] for t in obs_time_list] - [expert_traj.x[t][obs_state_list] for t in obs_time_list])^2 + 
                      norm([traj.u[t][obs_control_list] for t in obs_time_list] - [expert_traj.u[t][obs_control_list] for t in obs_time_list])^2
         return loss_value
