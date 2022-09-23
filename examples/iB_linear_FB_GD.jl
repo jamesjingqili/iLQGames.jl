@@ -206,9 +206,9 @@ game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 
-GD_iter_num = 100
+GD_iter_num = 50
 num_clean_traj = 10
-noise_level_list = 0.01:0.01:0.1
+noise_level_list = 0.0:0.02:0.1
 num_noise_level = length(noise_level_list)
 num_obs = 10
 x0 = SVector(0, 1, 1,1)
@@ -260,18 +260,18 @@ end
 num_generalization = 6
 # test_x0_list = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization]
 
-
-Threads.@threads for ii in 1:num_clean_traj
+# ---------------------------------------------------------------  (1)
+Threads.@threads for ii in ProgressBar(1:num_clean_traj)
     for jj in 1:num_noise_level
-        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiment(games[ii],θ₀,[x0_set[ii] for kk in 1:num_obs], 
+        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.01)
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.001, false)
         @infiltrate
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
                                             1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
-        generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
-                                    expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
+        # generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
+        #                             expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
         
         push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
         push!(conv_table_list[ii][jj], conv_table)
@@ -284,7 +284,40 @@ Threads.@threads for ii in 1:num_clean_traj
         push!(θ_list_list[ii][jj], θ_list)
         push!(index_list_list[ii][jj], index_list)
         push!(optim_loss_list_list[ii][jj], optim_loss_list)
-        push!(generalization_error_list[ii][jj], generalization_error)
+        # push!(generalization_error_list[ii][jj], generalization_error)
+    end
+end
+# ---------------------------------------------------------------  (2)
+using Random
+num_time = 20
+obs_time_list = sort!(shuffle(1:game_horizon-1)[1:num_time])
+obs_state_list = [1,2,3]
+obs_control_list = [1,2,3,4]
+
+Threads.@threads for ii in ProgressBar(1:num_clean_traj)
+    for jj in 1:num_noise_level
+        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
+                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.001, false)
+        @infiltrate
+        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
+        state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
+                                            1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
+        # generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
+        #                             expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
+        
+        push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
+        push!(conv_table_list[ii][jj], conv_table)
+        push!(sol_table_list[ii][jj], sol_table)
+        push!(loss_table_list[ii][jj], loss_table)
+        push!(grad_table_list[ii][jj], grad_table)
+        push!(equi_table_list[ii][jj], equi_table)
+        push!(iter_table_list[ii][jj], equi_table)
+        push!(comp_time_table_list[ii][jj], comp_time_table)
+        push!(θ_list_list[ii][jj], θ_list)
+        push!(index_list_list[ii][jj], index_list)
+        push!(optim_loss_list_list[ii][jj], optim_loss_list)
+        # push!(generalization_error_list[ii][jj], generalization_error)
     end
 end
 

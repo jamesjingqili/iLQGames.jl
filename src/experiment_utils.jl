@@ -221,7 +221,6 @@ function objective_inference_with_partial_obs(x0, θ, expert_traj, g, max_GD_ite
         else
             if loss_values[iter+1]<convergence_tol
                 converged = true
-                break
             end
         end
 
