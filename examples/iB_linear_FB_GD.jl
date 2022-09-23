@@ -44,7 +44,7 @@ include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined ther
 
 @everywhere begin
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 100
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
 # setup the dynamics
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
@@ -195,6 +195,7 @@ function parameterized_cost(θ::Vector)
              FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + (u[3]^2 + u[4]^2))))
     return costs
 end
+θ_true = [0,2,2]
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 40
 costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
@@ -208,7 +209,7 @@ solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equil
 
 GD_iter_num = 50
 num_clean_traj = 10
-noise_level_list = 0.0:0.02:0.1
+noise_level_list = 0.0:0.01:0.05
 num_noise_level = length(noise_level_list)
 num_obs = 10
 x0 = SVector(0, 1, 1,1)
@@ -261,7 +262,7 @@ num_generalization = 6
 # test_x0_list = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization]
 
 # ---------------------------------------------------------------  (1)
-Threads.@threads for ii in ProgressBar(1:num_clean_traj)
+Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,comp_time_table=run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
@@ -287,10 +288,21 @@ Threads.@threads for ii in ProgressBar(1:num_clean_traj)
         # push!(generalization_error_list[ii][jj], generalization_error)
     end
 end
+
+using JLD2
+jldsave("GD_full_$(Dates.now())"; nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, mean_GD,var_GD, 
+    mean_predictions, variance_predictions, mean_predictions_loss, variance_predictions_loss)
+
 # ---------------------------------------------------------------  (2)
 using Random
 num_time = 20
 obs_time_list = sort!(shuffle(1:game_horizon-1)[1:num_time])
+obs_time_list[1] = 1
+obs_time_list[2] = 2
+obs_time_list[3] = 3
+
 obs_state_list = [1,2,3]
 obs_control_list = [1,2,3,4]
 
@@ -320,6 +332,12 @@ Threads.@threads for ii in ProgressBar(1:num_clean_traj)
         # push!(generalization_error_list[ii][jj], generalization_error)
     end
 end
+
+using JLD2
+jldsave("GD_partial_$(Dates.now())"; nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, mean_GD,var_GD,
+    mean_predictions, variance_predictions, mean_predictions_loss, variance_predictions_loss)
 
 # ii -> nominal traj, jj -> noise level, index -> information pattern
 mean_predictions = [zeros(num_noise_level) for index in 1:1]
@@ -360,6 +378,79 @@ for jj in 1:length(mean_GD)
 end
 
 plot(1:length(mean_GD), mean_GD, ribbons = (var_GD, var_GD), xlabel = "iterations", ylabel = "loss")
+
+# -----------------------------------------------------------------------------
+index=1
+tmp_mean_GD_list = []
+tmp_var_GD_list = []
+for noise in 1:length(noise_level_list)
+    mean_GD_local = zeros((sum(tmp["iter_table_list"][index][noise][1][1][ii]!="" for ii in 1:length(tmp["iter_table_list"][index][noise][1][1]))))
+    var_GD_local = zeros((sum(tmp["iter_table_list"][index][noise][1][1][ii]!="" for ii in 1:length(tmp["iter_table_list"][index][noise][1][1]))))
+    for jj in 1:length(mean_GD_local)
+        mean_GD_local[jj] = mean(reduce(vcat, tmp["loss_table_list"][index][noise][1][ii][jj] for ii in 1:num_obs))
+        var_GD_local[jj] = var(reduce(vcat, tmp["loss_table_list"][index][noise][1][ii][jj] for ii in 1:num_obs))
+    end
+    push!(tmp_mean_GD_list, mean_GD_local)
+    push!(tmp_var_GD_list, var_GD_local)
+    if noise == 1
+        plot(1:length(tmp_mean_GD_list[noise]), tmp_mean_GD_list[noise], ribbons = (tmp_var_GD_list[noise], tmp_var_GD_list[noise]),alpha=0.5, title="Full observation", xlabel = "iterations", ylabel = "||x̂ - x||₂", label="Full observation, σ = $(noise_level_list[noise])")
+    else
+        plot!(1:length(tmp_mean_GD_list[noise]), tmp_mean_GD_list[noise], ribbons = (tmp_var_GD_list[noise], tmp_var_GD_list[noise]),alpha=0.5, label="Full observation, σ = $(noise_level_list[noise])")
+    end
+end
+
+index=3
+mean_GD_list = []
+var_GD_list = []
+for noise in 1:length(noise_level_list)
+    mean_GD_local = zeros((sum(iter_table_list[index][noise][1][1][ii]!="" for ii in 1:length(iter_table_list[index][noise][1][1]))))
+    var_GD_local = zeros((sum(iter_table_list[index][noise][1][1][ii]!="" for ii in 1:length(iter_table_list[index][noise][1][1]))))
+    for jj in 1:length(mean_GD_local)
+        mean_GD_local[jj] = mean(reduce(vcat, loss_table_list[index][noise][1][ii][jj] for ii in 1:num_obs))
+        var_GD_local[jj] = var(reduce(vcat, loss_table_list[index][noise][1][ii][jj] for ii in 1:num_obs))
+    end
+    push!(mean_GD_list, mean_GD_local)
+    push!(var_GD_list, var_GD_local)
+    if noise == 1
+        plot(1:length(mean_GD_list[noise]), mean_GD_list[noise], ribbons = (var_GD_list[noise], var_GD_list[noise]),alpha=0.5, title="Partial observation", xlabel = "iterations", ylabel = " (||x̂ - x||₂)", label="σ = $(noise_level_list[noise])")
+    else
+        plot!(1:length(mean_GD_list[noise]), mean_GD_list[noise], ribbons = (var_GD_list[noise], var_GD_list[noise]),alpha=0.5, label="σ = $(noise_level_list[noise])")
+    end
+end
+
+if noise == 1
+        plot(1:length(mean_GD_list[noise]), log.(mean_GD_list[noise]), alpha=0.5, title="Inverse Feedback Games with Partial observations", xlabel = "iterations", ylabel = " lg(||x̂ - x||₂)", label="Expert Data noise variance σ = $(noise_level_list[noise])")
+    else
+        plot!(1:length(mean_GD_list[noise]), log.(mean_GD_list[noise]),alpha=0.5, label="Expert Data noise variance σ = $(noise_level_list[noise])")
+    end
+
+
+savefig("partial_GD.pdf")
+savefig("partial_GD_var.pdf")
+savefig("partial_GD_log.pdf")
+
+
+noisy_expert_traj_list[1][3][1].x
+
+noise = 3
+plot()
+scatter!([noisy_expert_traj_list[1][noise][1].x[t][1] for t in obs_time_list], [noisy_expert_traj_list[1][noise][1].x[t][2] for t in obs_time_list], markershape=:circle, color="red", label="partial noisy observation of player 1")
+scatter!([noisy_expert_traj_list[1][noise][1].x[t][3] for t in obs_time_list], [noisy_expert_traj_list[1][noise][1].x[t][4] for t in obs_time_list], markershape=:circle, color="blue", label="partial noisy observation of player 2")
+plot!([expert_traj_list[1].x[t][1] for t in 1:game_horizon], [expert_traj_list[1].x[t][2] for t in 1:game_horizon], line=(:dashdot), color="red", label="ground truth trajectory of player 1")
+plot!([expert_traj_list[1].x[t][3] for t in 1:game_horizon], [expert_traj_list[1].x[t][4] for t in 1:game_horizon], line=(:dashdot), color="blue", label="ground truth trajectory of player 2")
+
+
+plt=plot()
+for noise in 1:3
+    plt=plot!(1:length(mean_GD_list[noise]), log.(mean_GD_list[noise]),alpha=0.5, title="Cost Inference under Partial observation", xlabel = "iterations", ylabel = "log(||x̂ - x||₂)", label="σ = $(noise_level_list[noise])")
+end
+display(plt)
+savefig("partial_GD_log_3.pdf")
+
+
+
+
+
 
 
 
