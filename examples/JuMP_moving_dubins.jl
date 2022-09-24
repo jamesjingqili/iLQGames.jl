@@ -40,7 +40,7 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_KKT")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,1)
+x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.5)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_KKT")
@@ -55,7 +55,6 @@ anim1 = @animate for i in 1:game_horizon
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "") 
 end
-
 gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
 x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
 x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
@@ -65,32 +64,28 @@ anim2 = @animate for i in 1:game_horizon
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "")
 end
-
 gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
 
 
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-1)^2+θ[4]*(x[1]-1)^2  + (2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( θ[2]*(x[5]-0)^2+θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-x[9])^2+θ[2]*(x[1]^2+x[2]^2)  + (2*(x[4]-1)^2 + u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
     return costs
 end
 
 # θ_true = [10, 1, 1, 4, 1]
+# We design the experiment such that the expert trajectory navigates to zero, but we want to generalize to elsewhere.
 θ_true = [4, 0, 4]
-
 obs_x_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.x[t]) for t in 1:g.h])))
 obs_u_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.u[t]) for t in 1:g.h])))
-
 obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
 obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[t]) for t in 1:g.h])))
-
-
 
 # ------------------------------------ Optimization problem begin ------------------------------------------- #
 
 function KKT_highway_forward_game_solve(  )
-    θ=[4,0,4,0]
+    θ=[4,0,4]
     model = Model(Ipopt.Optimizer)
     @variable(model, x[1:nx, 1:g.h])
     @variable(model, u[1:nu, 1:g.h])
@@ -99,8 +94,8 @@ function KKT_highway_forward_game_solve(  )
     ΔT = 0.1
     for t in 1:g.h # for each time t within the game horizon
         if t != g.h # dJ1/dx
-            @constraint(model,   λ[1,1,t] + 2*θ[4]*(x[1,t]-1)             - λ[1,1,t+1] == 0)
-            @constraint(model,   λ[1,2,t]               - λ[1,2,t+1] == 0)
+            @constraint(model,   λ[1,1,t] + 2*θ[2]*x[1,t]             - λ[1,1,t+1] == 0)
+            @constraint(model,   λ[1,2,t] + 2*θ[2]*x[2,t]             - λ[1,2,t+1] == 0)
             @NLconstraint(model, λ[1,3,t]               - λ[1,3,t+1] + λ[1,1,t+1]*ΔT*x[4,t]*sin(x[3,t]) - λ[1,2,t+1]*ΔT*x[4,t]*cos(x[3,t])  == 0)
             @NLconstraint(model, λ[1,4,t] + 4*(x[4,t]-1)                - λ[1,4,t+1] - λ[1,1,t+1]*ΔT*cos(x[3,t]) - λ[1,2,t+1]*ΔT*sin(x[3,t]) == 0)
             @constraint(model,   λ[1,5,t] + 2*θ[1]*(x[5,t]-x[9,t])           - λ[1,5,t+1] == 0)
@@ -167,7 +162,7 @@ function KKT_highway_forward_game_solve(  )
     end
     # @constraint(model, θ .>= -0.1*ones(3))
     optimize!(model)
-    return value.(x), value.(u), value.(θ)
+    return value.(x), value.(u), value.(θ), model
 end
 
 JuMP_forward_sol=KKT_highway_forward_game_solve()
@@ -177,6 +172,8 @@ function parameterized_cost(θ::Vector)
              FunctionPlayerCost((g, x, u, t) -> ( θ[2]*(x[5]-0)^2+θ[3]*(x[5] - x[1])^2 + (2*(x[8]-1)^2 + u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
     return costs
 end
+
+
 # ------------------------------------ Optimization problem end ------------------------------------------- #
 function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, obs_time_list = 1:game_horizon-1, obs_state_index_list = [1,3,4,5,7,8], obs_control_index_list = [1,2,3,4])
     # θ=[4,0,4]
@@ -260,7 +257,7 @@ function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, obs_time_list = 1
     end
     @constraint(model, θ .>= -0.0*ones(4))
     optimize!(model)
-    return value.(x), value.(u), value.(θ)
+    return value.(x), value.(u), value.(θ), model
 end
 
 JuMP_inverse_sol = KKT_highway_inverse_game_solve(obs_x_FB[:,2:end], obs_u_FB, [1,1,1,1,1])
