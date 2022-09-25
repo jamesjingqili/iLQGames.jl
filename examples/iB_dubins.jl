@@ -19,7 +19,7 @@ include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined ther
 
 
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 9, 4, 0.1, 60
+nx, nu, ΔT, game_horizon = 9, 4, 0.1, 40
 
 # setup the dynamics
 struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end
@@ -30,8 +30,8 @@ dynamics = DoubleUnicycle()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> ( 6*(x[5]-x[9])^2 + 0*(x[1])^2 + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
 #          FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> (  6*(x[5]-x[9])^2  + 4*(u[1]^2 + u[2]^2))),
-         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2))))
+costs = (FunctionPlayerCost((g, x, u, t) -> (  8*(x[5]-x[9])^2  + 2*(u[1]^2 + u[2]^2))),
+         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2 + 4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2))))
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -47,14 +47,32 @@ solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibr
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-x[9])^2 + θ[2]*x[1]^2  + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[5] - x[1])^2 + θ[4]*(x[8]-1)^2 + 4*(u[3]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-x[9])^2 + θ[2]*x[1]^2  + 2*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[5] - x[1])^2 + θ[4]*(x[8]-1)^2 + 2*(u[3]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
     return costs
 end
 
 # θ_true = [10, 1, 1, 4, 1]
-θ_true = [6, 0, 4, 2]
+θ_true = [8, 0, 4, 4]
 
+# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+# x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+# anim2 = @animate for i in 1:game_horizon
+#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "")
+# end
+# gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
+# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+# x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+# anim1 = @animate for i in 1:game_horizon
+#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "") 
+# end
+# gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"
@@ -123,10 +141,10 @@ for ii in 1:num_clean_traj
         
         # push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
         generalization_error = zeros(num_test)
-        ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],obs_time_list, obs_state_list, obs_control_list)
+        ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
         for kk in 1:num_test
             # @infiltrate
-            generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],obs_time_list, obs_state_list, obs_control_list)
+            generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],1:g.h-1, 1:nx, 1:nu)
         end
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)

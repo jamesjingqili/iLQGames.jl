@@ -19,7 +19,7 @@ include("../src/diff_solver.jl")
 include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
-nx, nu, ΔT, game_horizon = 9, 4, 0.1, 60
+nx, nu, ΔT, game_horizon = 9, 4, 0.1, 40
 
 # setup the dynamics
 struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end
@@ -30,8 +30,8 @@ dynamics = DoubleUnicycle()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 6*(x[5]-x[9])^2 + 0*(x[1])^2 + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-         FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 8*(x[5]-x[9])^2 + 0*(x[1])^2 + 2*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+         FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -85,7 +85,7 @@ obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[
 # ------------------------------------ Optimization problem begin ------------------------------------------- #
 
 function KKT_highway_forward_game_solve( x0,g)
-    θ=[6,0,4,2]
+    θ=[8,0,4,4]
     model = Model(Ipopt.Optimizer)
     @variable(model, x[1:nx, 1:g.h])
     @variable(model, u[1:nu, 1:g.h])
@@ -138,10 +138,10 @@ function KKT_highway_forward_game_solve( x0,g)
         end
 
         # dJ1/du and dJ2/du
-        @constraint(model, 8*u[1,t] - λ[1,3,t]*ΔT == 0)
-        @constraint(model, 8*u[2,t] - λ[1,4,t]*ΔT == 0)
-        @constraint(model, 8*u[3,t] - λ[2,7,t]*ΔT == 0)
-        @constraint(model, 8*u[4,t] - λ[2,8,t]*ΔT == 0)
+        @constraint(model, 4*u[1,t] - λ[1,3,t]*ΔT == 0)
+        @constraint(model, 4*u[2,t] - λ[1,4,t]*ΔT == 0)
+        @constraint(model, 4*u[3,t] - λ[2,7,t]*ΔT == 0)
+        @constraint(model, 4*u[4,t] - λ[2,8,t]*ΔT == 0)
         if t == 1
             @NLconstraint(model, x[1,1] == x0[1] + ΔT * x0[4]*cos(x0[3]))
             @NLconstraint(model, x[2,1] == x0[2] + ΔT * x0[4]*sin(x0[3]))
@@ -170,7 +170,26 @@ function KKT_highway_forward_game_solve( x0,g)
 end
 
 for_sol=KKT_highway_forward_game_solve(x0, g)
-loss_value1 = objective_value(for_sol[4])
+
+
+
+
+anim1 = @animate for i in 1:game_horizon
+    plot( [for_sol[1][1,i], for_sol[1][1,i]], [for_sol[1][2,i], for_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([for_sol[1][5,i], for_sol[1][5,i]], [for_sol[1][6,i], for_sol[1][6,i]], markershape = :square, label = "player 2, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "") 
+end
+gif(anim1, "lane_guiding_for_JuMP.gif", fps = 10)
+
+anim2 = @animate for i in 1:game_horizon
+    plot( [obs_x_OL[1,i], obs_x_OL[1,i]], [obs_x_OL[2,i], obs_x_OL[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([obs_x_OL[5,i], obs_x_OL[5,i]], [obs_x_OL[6,i], obs_x_OL[6,i]], markershape = :square, label = "player 2, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "")
+end
+gif(anim2, "lane_guiding_OL_iLQ.gif", fps = 10)
+
 
 
 # ------------------------------------ Optimization problem end ------------------------------------------- #
@@ -237,10 +256,10 @@ function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, x0, obs_time_list
         end
 
         # dJ1/du and dJ2/du
-        @constraint(model, 8*u[1,t] - λ[1,3,t]*ΔT == 0)
-        @constraint(model, 8*u[2,t] - λ[1,4,t]*ΔT == 0)
-        @constraint(model, 8*u[3,t] - λ[2,7,t]*ΔT == 0)
-        @constraint(model, 8*u[4,t] - λ[2,8,t]*ΔT == 0)
+        @constraint(model, 4*u[1,t] - λ[1,3,t]*ΔT == 0)
+        @constraint(model, 4*u[2,t] - λ[1,4,t]*ΔT == 0)
+        @constraint(model, 4*u[3,t] - λ[2,7,t]*ΔT == 0)
+        @constraint(model, 4*u[4,t] - λ[2,8,t]*ΔT == 0)
         if t == 1
             @NLconstraint(model, x[1,1] == x0[1] + ΔT * x0[4]*cos(x0[3]))
             @NLconstraint(model, x[2,1] == x0[2] + ΔT * x0[4]*sin(x0[3]))
@@ -276,7 +295,7 @@ anim1 = @animate for i in 1:game_horizon
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "") 
 end
-gif(anim1, "lane_guiding_JuMP.gif", fps = 10)
+gif(anim1, "lane_guiding_inv_JuMP.gif", fps = 10)
 
 anim2 = @animate for i in 1:game_horizon
     plot( [obs_x_OL[1,i], obs_x_OL[1,i]], [obs_x_OL[2,i], obs_x_OL[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
