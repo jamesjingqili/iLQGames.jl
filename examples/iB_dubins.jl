@@ -62,7 +62,7 @@ end
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 40
+GD_iter_num = 30
 num_clean_traj = 1
 noise_level_list = 0.005:0.005:0.03
 num_noise_level = length(noise_level_list)
