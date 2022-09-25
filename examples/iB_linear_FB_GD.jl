@@ -192,14 +192,14 @@ include("experiment_utils.jl")
 @everywhere begin
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + 10*(u[1]^2 + u[2]^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( 0*(x[3]^2 + x[4]^2) + θ[3]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + 10*(u[3]^2 + u[4]^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + 6*(u[1]^2 + u[2]^2))),
+             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[3]^2 + x[4]^2) + θ[4]*((x[1]-x[3])^2 + (x[2]-x[4])^2) + 6*(u[3]^2 + u[4]^2))))
     return costs
 end
-θ_true = [0,2,2]
+θ_true = [0,4,0,4]
 nx, nu, ΔT, game_horizon = 4, 4, 0.1, 20
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + 10*(u[1]^2 + u[2]^2))),
-         FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + 10*(u[3]^2 + u[4]^2))))
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 4*(x[3]^2 + x[4]^2) + 6*(u[1]^2 + u[2]^2))),
+         FunctionPlayerCost((g, x, u, t) -> ( 4*((x[1]-x[3])^2 + (x[2]-x[4])^2) + 6*(u[3]^2 + u[4]^2))))
 dynamics = LTISystem(LinearSystem{ΔT}(SMatrix{4,4}(Matrix(1.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
                 SVector(1, 2, 3, 4))
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -268,7 +268,7 @@ Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, expert_traj_list[ii])
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, expert_traj_list[ii], false, true, "LQ")
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -326,7 +326,7 @@ Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table1,sol_table1,loss_table1,grad_table1,equi_table1,iter_table1,ground_truth_loss1=run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
-                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.00000001, false, 10, expert_traj_list[ii])
+                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.00000001, false, 10, expert_traj_list[ii], false, true, "LQ")
         θ_list1, index_list1, optim_loss_list1 = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table1, loss_table1, equi_table1)
         # state_prediction_error_list1 = loss(θ_list1[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -427,11 +427,11 @@ for noise in 1:length(noise_level_list)
     end
     push!(mean_GD_list, mean_GD_local)
     push!(var_GD_list, var_GD_local)
-    if noise == 1
-        plot(1:length(mean_GD_list[noise]), mean_GD_list[noise], ribbons = (var_GD_list[noise], var_GD_list[noise]),alpha=0.5, title="Partial observation", xlabel = "iterations", ylabel = " (||x̂ - x||₂)", label="σ = $(noise_level_list[noise])")
-    else
-        plot!(1:length(mean_GD_list[noise]), mean_GD_list[noise], ribbons = (var_GD_list[noise], var_GD_list[noise]),alpha=0.5, label="σ = $(noise_level_list[noise])")
-    end
+    # if noise == 1
+    #     plot(1:length(mean_GD_list[noise]), mean_GD_list[noise], ribbons = (var_GD_list[noise], var_GD_list[noise]),alpha=0.5, title="Partial observation", xlabel = "iterations", ylabel = " (||x̂ - x||₂)", label="σ = $(noise_level_list[noise])")
+    # else
+    #     plot!(1:length(mean_GD_list[noise]), mean_GD_list[noise], ribbons = (var_GD_list[noise], var_GD_list[noise]),alpha=0.5, label="σ = $(noise_level_list[noise])")
+    # end
 end
 
 if noise == 1
@@ -460,7 +460,7 @@ plt=plot()
 for noise in 1:3
     plt=plot!(1:length(mean_GD_list1[noise]), mean_GD_list1[noise],ribbons=(var_GD_list1[noise], var_GD_list1[noise]),color = color_list[noise],alpha=1, title="Cost Inference under Partial observation", xlabel = "iterations", ylabel = "log(||X̂ - X||₂² + ||Û - U ||₂²)", label="σ = $(noise_level_list[noise])")
     for ii in 1:num_obs
-        plt=scatter!(1:length(mean_GD_list[noise]), log.(ground_truth_loss_list[1][noise][1][ii]),color=color_list[noise], alpha=0.5, markershape=:x, label="")
+        plt=scatter!(1:length(mean_GD_list[noise]), log.(ground_truth_loss_list1[1][noise][1][ii]),color=color_list[noise], alpha=0.5, markershape=:x, label="")
     end
 end
 display(plt)
