@@ -461,7 +461,7 @@ function get_the_best_possible_reward_estimate_single(x0_set, all_equilibrium_ty
     optim_loss_list = [0.0 for ii in 1:n_data]    
     for ii in 1:n_data
         if minimum(loss_table[ii])==0.0
-            index_list[ii] = iterations_taken_to_converge(equi_list[ii])
+            index_list[ii] = iterations_taken_to_converge(equi_list[ii])+1
             θ_list[ii] = sol_table[ii][index_list[ii]]
             optim_loss_list[ii] = loss_table[ii][index_list[ii]]
         else

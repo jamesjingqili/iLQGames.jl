@@ -82,7 +82,7 @@ end
 
 GD_iter_num = 30
 num_clean_traj = 1
-noise_level_list = 0.005:0.005:0.03
+noise_level_list = 0.005:0.005:0.05
 num_noise_level = length(noise_level_list)
 num_obs = 10
 games = []
@@ -122,7 +122,7 @@ ground_truth_loss_list = deepcopy(conv_table_list);
 
 θ₀ = ones(4);
 
-num_test=5
+num_test=10
 test_x0_set = [x0+[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test]
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
@@ -132,7 +132,7 @@ for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.01, true, 2.0)
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.0001, true, 2.0,[],true)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -245,7 +245,7 @@ for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table1,sol_table1,loss_table1,grad_table1,equi_table1,iter_table1,ground_truth_loss1=run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
-                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.001, true, 2.0, [], true, true, "NL")
+                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", , 0.0001, true, 2.0,[],true)
         θ_list1, index_list1, optim_loss_list1 = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table1, ground_truth_loss1, equi_table1)
         # state_prediction_error_list1 = loss(θ_list1[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -284,8 +284,8 @@ for noise in 1:length(noise_level_list)
 end
 
 # below is full observation
-mean_prediction_loss = zeros(1:length(noise_level_list))
-var_prediction_loss = []
+mean_prediction_loss = zeros(length(noise_level_list))
+var_prediction_loss = zeros(length(noise_level_list))
 index=1
 for noise in 1:length(noise_level_list)
     mean_prediction_loss[noise] = mean(reduce(vcat, optim_loss_list_list[index][noise][1][ii] for ii in 1:num_obs))
