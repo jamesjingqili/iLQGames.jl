@@ -134,6 +134,7 @@ solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
 
 
 for ii in 1:num_clean_traj
+
     Threads.@threads for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-6, 
@@ -367,19 +368,20 @@ tmp = load("KKT_compact_data")
 
 #----------------------------------------------------
 tmp1 = [mean(tmp["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
-tmp2 = [mean(optim_loss_list_list[1][ii])[1] for ii in 1:num_noise_level]
-tmp3 = [ground_truth_loss_list[1][ii][1] for ii in 1:num_noise_level]
-tmp4 = [mean(tmp["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
-tmp5 = [mean(generalization_error_list[1][ii])[1] for ii in 1:num_noise_level]
-tmp6 = [mean(tmp["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp2 = [mean(tmp["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp3 = [mean(tmp["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+
+tmp4 = [mean(optim_loss_list_list[1][ii])[1] for ii in 1:num_noise_level]
+tmp5 = [ground_truth_loss_list[1][ii][1] for ii in 1:num_noise_level]
+tmp6 = [mean(generalization_error_list[1][ii])[1] for ii in 1:num_noise_level]
 
 plot(noise_level_list, tmp1, line=:dash, color="red", label = "inverse KKT OLNE, distance to observation data", xlabel="noise variance", size = (700,300),legend = :outerleft)
-plot!(noise_level_list, tmp3,line=:dash, color="blue", label = "inverse KKT OLNE, distance to no-noise data")
-plot!(noise_level_list, tmp6,line=:dash, color="orange", label = "inverse KKT OLNE, generalization loss")
+plot!(noise_level_list, tmp2,line=:dash, color="blue", label = "inverse KKT OLNE, distance to no-noise data")
+plot!(noise_level_list, tmp3,line=:dash, color="orange", label = "inverse KKT OLNE, generalization loss")
 
-plot!(noise_level_list, tmp2, color="red", label="Inverse FBNE, distance to observation data")
-plot!(noise_level_list, tmp4, color="blue", label = "Inverse FBNE, ground truth loss")
-plot!(noise_level_list, tmp5, color="orange", label="Inverse FBNE, generalization loss")
+plot!(noise_level_list, tmp4, color="red", label="Inverse FBNE, distance to observation data")
+plot!(noise_level_list, tmp5, color="blue", label = "Inverse FBNE, ground truth loss")
+plot!(noise_level_list, tmp6, color="orange", label="Inverse FBNE, generalization loss")
 
 
 
