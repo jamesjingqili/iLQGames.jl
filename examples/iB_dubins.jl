@@ -123,7 +123,7 @@ ground_truth_loss_list = deepcopy(conv_table_list);
 θ₀ = ones(4);
 
 num_test=10
-test_x0_set = [x0+[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test]
+test_x0_set = [x0+0.5[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test]
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
 
@@ -292,15 +292,64 @@ for noise in 1:length(noise_level_list)
     var_prediction_loss[noise] = var(reduce(vcat, optim_loss_list_list[index][noise][1][ii] for ii in 1:num_obs))
 end
 
+plt = plot()
+plt = plot!(noise_level_list[1:9], mean_prediction_loss[1:9], ribbons=(var_prediction_loss[1:9], var_prediction_loss[1:9]))
+display(plt)
 
+
+# mean_loss = zeros(length(noise_level_list))
+# var_loss = zeros(length(noise_level_list))
+# index=1
+# for noise in 1:length(noise_level_list)
+#     mean_loss[noise] = mean(reduce(vcat, loss_table_list[index][noise][1][ii] for ii in 1:num_obs))
+#     var_loss[noise] = var(reduce(vcat, loss_table_list[index][noise][1][ii] for ii in 1:num_obs))
+# end
+
+plt = plot()
+plt = plot!(noise_level_list[1:9], mean_loss[1:9], ribbons=(var_loss[1:9], var_loss[1:9]))
+display(plt)
+
+
+mean_gen_loss = zeros(length(noise_level_list))
+var_gen_loss = zeros(length(noise_level_list))
+index=1
+for noise in 1:length(noise_level_list)
+    mean_gen_loss[noise] = mean(reduce(vcat, generalization_error_list[index][noise][1][ii] for ii in 1:num_obs))
+    var_gen_loss[noise] = var(reduce(vcat, generalization_error_list[index][noise][1][ii] for ii in 1:num_obs))
+end
+plt = plot(noise_level_list[1:9], mean_gen_loss[1:9], ribbons=(var_gen_loss[1:9], var_gen_loss[1:9]))
+display(plt)
 
 #----------------------------------------------------------------------------------------------------------------
 
 index=1
 noise=1
 ii = 1
-scatter([noisy_expert_traj_list[index][noise][ii].x[t][1] for t in 1:g.h], [noisy_expert_traj_list[index][noise][ii].x[t][2] for t in 1:g.h])
-scatter!([noisy_expert_traj_list[index][noise][ii].x[t][5] for t in 1:g.h], [noisy_expert_traj_list[index][noise][ii].x[t][6] for t in 1:g.h])
+plot([expert_traj_list[index].x[t][1] for t in 1:g.h], [expert_traj_list[index].x[t][2] for t in 1:g.h], color="red")
+plot!([expert_traj_list[index].x[t][5] for t in 1:g.h], [expert_traj_list[index].x[t][6] for t in 1:g.h], color="blue")
+scatter!([noisy_expert_traj_list[index][noise][ii].x[t][1] for t in 1:g.h], [noisy_expert_traj_list[index][noise][ii].x[t][2] for t in 1:g.h], color="red")
+scatter!([noisy_expert_traj_list[index][noise][ii].x[t][5] for t in 1:g.h], [noisy_expert_traj_list[index][noise][ii].x[t][6] for t in 1:g.h], color="blue")
+
+
+
+
+
+index=1
+ii = 1
+scatter([expert_traj_list[index].x[t][1] for t in 1:g.h], [expert_traj_list[index].x[t][2] for t in 1:g.h])
+scatter!([expert_traj_list[index].x[t][5] for t in 1:g.h], [expert_traj_list[index].x[t][6] for t in 1:g.h])
+
+
+
+
+index=5
+ii = 1
+test_loss, test_traj, _, _ = loss(θ_list_list[1][1][1][1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[index], false, false, 
+                [], [], 1:game_horizon-1, 1:nx, 1:nu) 
+scatter([test_traj.x[t][1] for t in 1:g.h], [test_traj.x[t][2] for t in 1:g.h], color="red")
+scatter!([test_traj.x[t][5] for t in 1:g.h], [test_traj.x[t][6] for t in 1:g.h], color = "blue")
+plot!([test_expert_traj_list[index].x[t][1] for t in 1:g.h], [test_expert_traj_list[index].x[t][2] for t in 1:g.h], color="red")
+plot!([test_expert_traj_list[index].x[t][5] for t in 1:g.h], [test_expert_traj_list[index].x[t][6] for t in 1:g.h], color="blue")
 
 
 

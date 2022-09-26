@@ -76,7 +76,8 @@ end
 
 # θ_true = [10, 1, 1, 4, 1]
 # We design the experiment such that the expert trajectory navigates to zero, but we want to generalize to elsewhere.
-θ_true = [6, 0, 4, 2]
+
+θ_true = [8, 0, 4, 4]
 obs_x_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.x[t]) for t in 1:g.h])))
 obs_u_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.u[t]) for t in 1:g.h])))
 obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
@@ -171,24 +172,21 @@ end
 
 for_sol=KKT_highway_forward_game_solve(x0, g)
 
+# anim1 = @animate for i in 1:game_horizon
+#     plot( [for_sol[1][1,i], for_sol[1][1,i]], [for_sol[1][2,i], for_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([for_sol[1][5,i], for_sol[1][5,i]], [for_sol[1][6,i], for_sol[1][6,i]], markershape = :square, label = "player 2, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "") 
+# end
+# gif(anim1, "lane_guiding_for_JuMP.gif", fps = 10)
 
-
-
-anim1 = @animate for i in 1:game_horizon
-    plot( [for_sol[1][1,i], for_sol[1][1,i]], [for_sol[1][2,i], for_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([for_sol[1][5,i], for_sol[1][5,i]], [for_sol[1][6,i], for_sol[1][6,i]], markershape = :square, label = "player 2, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "") 
-end
-gif(anim1, "lane_guiding_for_JuMP.gif", fps = 10)
-
-anim2 = @animate for i in 1:game_horizon
-    plot( [obs_x_OL[1,i], obs_x_OL[1,i]], [obs_x_OL[2,i], obs_x_OL[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([obs_x_OL[5,i], obs_x_OL[5,i]], [obs_x_OL[6,i], obs_x_OL[6,i]], markershape = :square, label = "player 2, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))    
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "")
-end
-gif(anim2, "lane_guiding_OL_iLQ.gif", fps = 10)
+# anim2 = @animate for i in 1:game_horizon
+#     plot( [obs_x_OL[1,i], obs_x_OL[1,i]], [obs_x_OL[2,i], obs_x_OL[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([obs_x_OL[5,i], obs_x_OL[5,i]], [obs_x_OL[6,i], obs_x_OL[6,i]], markershape = :square, label = "player 2, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))    
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "")
+# end
+# gif(anim2, "lane_guiding_OL_iLQ.gif", fps = 10)
 
 
 
@@ -206,8 +204,8 @@ function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, x0, obs_time_list
     set_start_value.(x[1:nx, 1:g.h-1], obs_x)
     set_start_value.(u, obs_u)
     # @objective(model, Min, 0)
-    @constraint(model, θ[1] + θ[2] == 6 )
-    @constraint(model, θ[3] + θ[4] == 6 )
+    @constraint(model, θ[1] + θ[2] == 8 )
+    @constraint(model, θ[3] + θ[4] == 8 )
     @constraint(model, θ.>=0)
     @objective(model, Min, sum(sum((x[ii,t] - obs_x[ii,t])^2 for ii in obs_state_index_list ) for t in obs_time_list) + sum(sum((u[ii,t] - obs_u[ii,t])^2 for ii in obs_control_index_list) for t in obs_time_list) )
     for t in 1:g.h # for each time t within the game horizon
@@ -289,21 +287,21 @@ end
 inv_sol = KKT_highway_inverse_game_solve(obs_x_FB[:,2:end], obs_u_FB, 3*ones(4), x0);
 
 
-anim1 = @animate for i in 1:game_horizon
-    plot( [inv_sol[1][1,i], inv_sol[1][1,i]], [inv_sol[1][2,i], inv_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([inv_sol[1][5,i], inv_sol[1][5,i]], [inv_sol[1][6,i], inv_sol[1][6,i]], markershape = :square, label = "player 2, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "") 
-end
-gif(anim1, "lane_guiding_inv_JuMP.gif", fps = 10)
+# anim1 = @animate for i in 1:game_horizon
+#     plot( [inv_sol[1][1,i], inv_sol[1][1,i]], [inv_sol[1][2,i], inv_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([inv_sol[1][5,i], inv_sol[1][5,i]], [inv_sol[1][6,i], inv_sol[1][6,i]], markershape = :square, label = "player 2, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "") 
+# end
+# gif(anim1, "lane_guiding_inv_JuMP.gif", fps = 10)
 
-anim2 = @animate for i in 1:game_horizon
-    plot( [obs_x_OL[1,i], obs_x_OL[1,i]], [obs_x_OL[2,i], obs_x_OL[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([obs_x_OL[5,i], obs_x_OL[5,i]], [obs_x_OL[6,i], obs_x_OL[6,i]], markershape = :square, label = "player 2, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))    
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "")
-end
-gif(anim2, "lane_guiding_OL_iLQ.gif", fps = 10)
+# anim2 = @animate for i in 1:game_horizon
+#     plot( [obs_x_OL[1,i], obs_x_OL[1,i]], [obs_x_OL[2,i], obs_x_OL[2,i]], markershape = :square, label = "player 1, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([obs_x_OL[5,i], obs_x_OL[5,i]], [obs_x_OL[6,i], obs_x_OL[6,i]], markershape = :square, label = "player 2, iLQ OLNE", xlims = (-0.5, 1.5), ylims = (0, 6))    
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "")
+# end
+# gif(anim2, "lane_guiding_OL_iLQ.gif", fps = 10)
 
 
 
@@ -323,7 +321,7 @@ solver = solver1
 
 # The below: generate random expert trajectories
 num_obs = 10
-noise_level_list = 0.005:0.005:0.03
+noise_level_list = 0.005:0.005:0.05
 num_noise_level = length(noise_level_list)
 num_noise_level = length(noise_level_list)
 noisy_expert_traj_list = [[[zero(SystemTrajectory, game) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
@@ -348,7 +346,7 @@ end
 # generalization_error_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 # ground_truth_loss_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 
-θ₀ = 3*ones(4);
+θ₀ = 4*ones(4);
 inv_traj_x_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_traj_u_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_sol_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
@@ -403,20 +401,20 @@ end
 
 
 
-for ii in 1:num_clean_traj
-    for jj in 1:num_noise_level
-        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, expert_traj_list[ii])
-        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
-        # generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
-        #                             expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
-        push!(θ_list_list[ii][jj], θ_list)
-        push!(optim_loss_list_list[ii][jj], optim_loss_list)
-        push!(ground_truth_loss_list[ii][jj], ground_truth_loss)
-        push!(generalization_error_list[ii][jj], generalization_error)
-    end
-end
+# for ii in 1:num_clean_traj
+#     for jj in 1:num_noise_level
+#         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
+#                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
+#                                                                                                 1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, expert_traj_list[ii])
+#         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
+#         # generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
+#         #                             expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
+#         push!(θ_list_list[ii][jj], θ_list)
+#         push!(optim_loss_list_list[ii][jj], optim_loss_list)
+#         push!(ground_truth_loss_list[ii][jj], ground_truth_loss)
+#         push!(generalization_error_list[ii][jj], generalization_error)
+#     end
+# end
 
 
 
