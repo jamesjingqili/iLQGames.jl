@@ -1,4 +1,6 @@
 
+
+
 using iLQGames
 import iLQGames: dx
 using Plots
@@ -30,8 +32,8 @@ dynamics = DoubleUnicycle()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> ( 6*(x[5]-x[9])^2 + 0*(x[1])^2 + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
 #          FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> (  8*(x[5]-x[9])^2  + 2*(u[1]^2 + u[2]^2))),
-         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2 + 4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2))))
+costs = (FunctionPlayerCost((g, x, u, t) -> (  8*(x[5]-x[9])^2  +  2*(u[1]^2 + u[2]^2) )),
+         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-x[1])^2  +  4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ))   )
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
@@ -40,15 +42,15 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.1)
+x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.0)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[5]-x[9])^2 + θ[2]*x[1]^2  + 2*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-             FunctionPlayerCost((g, x, u, t) -> ( θ[3]*(x[5] - x[1])^2 + θ[4]*(x[8]-1)^2 + 2*(u[3]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
+    costs = (FunctionPlayerCost((g, x, u, t) -> (  θ[1]*(x[5]-x[9])^2  +  θ[2]*x[1]^2 +  2*(u[1]^2 + u[2]^2) )),
+             FunctionPlayerCost((g, x, u, t) -> (  θ[3]*(x[5]-x[1])^2  +  θ[4]*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ))   )
     return costs
 end
 
@@ -80,9 +82,10 @@ end
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 30
+GD_iter_num = 100
 num_clean_traj = 1
 noise_level_list = 0.005:0.005:0.05
+# noise_level_list=[0.0]
 num_noise_level = length(noise_level_list)
 num_obs = 10
 games = []
@@ -120,19 +123,21 @@ state_prediction_error_list_list = deepcopy(conv_table_list);
 generalization_error_list = deepcopy(conv_table_list);
 ground_truth_loss_list = deepcopy(conv_table_list);
 
-θ₀ = ones(4);
+θ₀ = 4*ones(4);
 
 num_test=10
-test_x0_set = [x0+0.5[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test]
+test_x0_set = [x0+0.5*rand(1)[1]*[0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0,1] for ii in 1:num_test]
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
 
+solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
+
 
 for ii in 1:num_clean_traj
-    for jj in 1:num_noise_level
+    Threads.@threads for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.0001, true, 2.0,[],true)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-6, 
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.0001, true, 10.0,[],true)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -144,6 +149,7 @@ for ii in 1:num_clean_traj
         ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
         for kk in 1:num_test
             # @infiltrate
+            # Threads.threadid()
             generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],1:g.h-1, 1:nx, 1:nu)
         end
         push!(conv_table_list[ii][jj], conv_table)
@@ -162,13 +168,16 @@ for ii in 1:num_clean_traj
 end
 
 
+# each solver for each thread
+
+
 
 
 using JLD2
-jldsave("GD_full_10_$(Dates.now())"; noise_level_list, nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
-    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
-    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, mean_GD,var_GD, 
-    mean_predictions, variance_predictions, mean_predictions_loss, variance_predictions_loss)
+jldsave("GD_full_2car$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
+    mean_predictions_loss, variance_predictions_loss, mean_gen_loss, var_gen_loss)
 
 # ii -> nominal traj, jj -> noise level, index -> information pattern
 # mean_predictions = [zeros(num_noise_level) for index in 1:3]
@@ -342,7 +351,7 @@ scatter!([expert_traj_list[index].x[t][5] for t in 1:g.h], [expert_traj_list[ind
 
 
 
-index=5
+index=2
 ii = 1
 test_loss, test_traj, _, _ = loss(θ_list_list[1][1][1][1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[index], false, false, 
                 [], [], 1:game_horizon-1, 1:nx, 1:nu) 
@@ -354,6 +363,23 @@ plot!([test_expert_traj_list[index].x[t][5] for t in 1:g.h], [test_expert_traj_l
 
 
 
+tmp = load("KKT_compact_data")
+
+#----------------------------------------------------
+tmp1 = [mean(tmp["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp2 = [mean(optim_loss_list_list[1][ii])[1] for ii in 1:num_noise_level]
+tmp3 = [ground_truth_loss_list[1][ii][1] for ii in 1:num_noise_level]
+tmp4 = [mean(tmp["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp5 = [mean(generalization_error_list[1][ii])[1] for ii in 1:num_noise_level]
+tmp6 = [mean(tmp["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+
+plot(noise_level_list, tmp1, line=:dash, color="red", label = "inverse KKT OLNE, distance to observation data", xlabel="noise variance", size = (700,300),legend = :outerleft)
+plot!(noise_level_list, tmp3,line=:dash, color="blue", label = "inverse KKT OLNE, distance to no-noise data")
+plot!(noise_level_list, tmp6,line=:dash, color="orange", label = "inverse KKT OLNE, generalization loss")
+
+plot!(noise_level_list, tmp2, color="red", label="Inverse FBNE, distance to observation data")
+plot!(noise_level_list, tmp4, color="blue", label = "Inverse FBNE, ground truth loss")
+plot!(noise_level_list, tmp5, color="orange", label="Inverse FBNE, generalization loss")
 
 
 

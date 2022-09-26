@@ -47,24 +47,24 @@ solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibr
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
 
-x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
-anim1 = @animate for i in 1:game_horizon
-    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "") 
-end
-gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
-x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
-x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
-anim2 = @animate for i in 1:game_horizon
-    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "")
-end
-gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
+# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+# x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+# anim1 = @animate for i in 1:game_horizon
+#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "") 
+# end
+# gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
+# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+# x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+# anim2 = @animate for i in 1:game_horizon
+#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
+#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "")
+# end
+# gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
 
 
 
@@ -373,7 +373,7 @@ for noise in 1:length(noise_level_list)
         
         tmp_obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_x[t]) for t in 1:game.h])))
         tmp_obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_u[t]) for t in 1:game.h])))
-        tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = KKT_highway_inverse_game_solve(tmp_obs_x[:,2:end], tmp_obs_u, θ₀, x0_set[index])
+        tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = KKT_highway_inverse_game_solve(tmp_obs_x[:,2:end], tmp_obs_u, θ₀, x0_set[index], obs_time_list, obs_state_list, obs_control_list)
         tmp_inv_loss = objective_value(tmp_inv_model)
         println("The $(ii)-th observation of $(noise)-th noise level")
         # solution_summary(tmp_inv_model)
@@ -385,7 +385,7 @@ for noise in 1:length(noise_level_list)
             # @infiltrate
             tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],obs_time_list, obs_state_list, obs_control_list)
         end
-        @infiltrate
+        # @infiltrate
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
         push!(inv_var_generalization_loss_list[noise][ii], var(tmp_test_loss_value))
         push!(inv_sol_list[noise][ii], tmp_inv_sol)
@@ -399,8 +399,13 @@ for noise in 1:length(noise_level_list)
 end
 
 
+jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_model_list, inv_ground_truth_loss_list,
+    inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
+    test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs,)
 
-
+jldsave("KKT_inverse_compact"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
+    inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
+    test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs)
 # for ii in 1:num_clean_traj
 #     for jj in 1:num_noise_level
 #         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
