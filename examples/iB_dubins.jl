@@ -137,6 +137,7 @@ for ii in 1:num_clean_traj
 
     # Threads.@threads for jj in 1:num_noise_level
     for jj in 1:num_noise_level
+        println("Now the $(jj)-th observation")
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
                                                                                                 1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.001, true, 10.0,[],true)
