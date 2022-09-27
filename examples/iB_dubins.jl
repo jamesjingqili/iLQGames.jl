@@ -42,7 +42,7 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.0)
+x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.1)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
@@ -126,7 +126,7 @@ ground_truth_loss_list = deepcopy(conv_table_list);
 θ₀ = 4*ones(4);
 
 num_test=10
-test_x0_set = [x0+0.5*rand(1)[1]*[0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0,1] for ii in 1:num_test]
+test_x0_set = [x0+rand(1)[1]*[0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0,1] for ii in 1:num_test]
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
 
@@ -148,9 +148,8 @@ for ii in 1:num_clean_traj
         
         # push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
         generalization_error = zeros(num_test)
-        ground_truth_loss_list = zeros(num_obs)
-
-        @infiltrate
+        # ground_truth_loss_list = zeros(num_obs)
+        # @infiltrate
         ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
         for kk in 1:num_test
             # @infiltrate
