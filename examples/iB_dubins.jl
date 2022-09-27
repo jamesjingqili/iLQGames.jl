@@ -135,10 +135,11 @@ solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
 
 for ii in 1:num_clean_traj
 
-    Threads.@threads for jj in 1:num_noise_level
+    # Threads.@threads for jj in 1:num_noise_level
+    for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-6, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.0001, true, 10.0,[],true)
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.001, true, 10.0,[],true)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -147,6 +148,9 @@ for ii in 1:num_clean_traj
         
         # push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
         generalization_error = zeros(num_test)
+        ground_truth_loss_list = zeros(num_obs)
+
+        @infiltrate
         ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
         for kk in 1:num_test
             # @infiltrate
@@ -169,6 +173,24 @@ for ii in 1:num_clean_traj
 end
 
 
+list_ground_truth_loss = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
+list_generalization_loss = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
+for ii in 1:num_clean_traj
+    for jj in 1:num_noise_level
+        tmp_ground_truth_loss = zeros(num_obs)
+        tmp_generalization_loss = zeros(num_test)
+        for kk in 1:num_obs
+            tmp_ground_truth_loss[kk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false, [],[],1:g.h-1, 1:nx, 1:nu)
+        end
+        for kk in 1:num_test
+            tmp_generalization_loss[kk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], true, false,[],[],1:g.h-1, 1:nx, 1:nu)
+        end
+        push!(list_ground_truth_loss[ii][jj], tmp_ground_truth_loss)
+        push!(list_generalization_loss[ii][jj], tmp_generalization_loss)
+    end
+end
+
+
 # each solver for each thread
 
 
@@ -178,7 +200,7 @@ using JLD2
 jldsave("GD_full_2car$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
-    mean_predictions_loss, variance_predictions_loss, mean_gen_loss, var_gen_loss)
+    mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss)
 
 # ii -> nominal traj, jj -> noise level, index -> information pattern
 # mean_predictions = [zeros(num_noise_level) for index in 1:3]
@@ -367,6 +389,7 @@ plot!([test_expert_traj_list[index].x[t][5] for t in 1:g.h], [test_expert_traj_l
 tmp = load("KKT_compact_data")
 
 #----------------------------------------------------
+
 tmp1 = [mean(tmp["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
 tmp2 = [mean(tmp["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
 tmp3 = [mean(tmp["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
