@@ -403,7 +403,7 @@ jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_
     inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
     test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs,)
 
-jldsave("KKT_inverse_compact"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
+jldsave("KKT_inverse_compact_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
     inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
     test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs)
 # for ii in 1:num_clean_traj
@@ -428,8 +428,9 @@ jldsave("KKT_inverse_compact"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, i
 ## Plot state_prediction_loss vs. noise_variance level
 
 
-
-
+plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
+plot!(noise_level_list, [mean(inv_loss_list[ii][jj] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label = "loss")
+plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="ground truth")
 
 
 

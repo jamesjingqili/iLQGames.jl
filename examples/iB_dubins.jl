@@ -82,14 +82,14 @@ end
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 100
+GD_iter_num = 50
 num_clean_traj = 1
 noise_level_list = 0.005:0.005:0.05
 # noise_level_list=[0.0]
 num_noise_level = length(noise_level_list)
 num_obs = 10
 games = []
-x0_set = [x0+0.0*rand(9) for ii in 1:num_clean_traj]
+x0_set = [x0 for ii in 1:num_clean_traj]
 # θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
 c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","FBNE_costate"])
