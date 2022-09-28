@@ -140,7 +140,7 @@ for ii in 1:num_clean_traj
         println("Now the $(jj)-th observation")
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.001, true, 10.0,[],true)
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.001, true, 10.0,[],true,false,[],true)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 

@@ -192,8 +192,10 @@ for_sol=KKT_highway_forward_game_solve(x0, g)
 
 # ------------------------------------ Optimization problem end ------------------------------------------- #
 
-function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, x0, obs_time_list = 1:game_horizon-1, obs_state_index_list = [1,3,4,5,7,8], obs_control_index_list = [1,2,3,4])
+function KKT_highway_inverse_game_solve(obs_x, obs_u, init_θ, x0, obs_time_list = 1:game_horizon-1, obs_state_index_list = [1,3,4,5,7,8], 
+    obs_control_index_list = [1,2,3,4],no_control = false)
     # θ=[4,0,4]
+
     model = Model(Ipopt.Optimizer)
     JuMP.set_silent(model)
     @variable(model, x[1:nx, 1:g.h])
