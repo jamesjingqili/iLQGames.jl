@@ -321,7 +321,8 @@ solver = solver1
 
 # The below: generate random expert trajectories
 num_obs = 10
-noise_level_list = 0.005:0.005:0.05
+# noise_level_list = 0.005:0.005:0.05
+noise_level_list = 0.004:0.002:0.04
 num_noise_level = length(noise_level_list)
 num_noise_level = length(noise_level_list)
 noisy_expert_traj_list = [[[zero(SystemTrajectory, game) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
@@ -358,7 +359,7 @@ inv_ground_truth_loss_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_
 inv_ground_truth_computed_traj_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 
 num_test = 10
-test_x0_set = [x0 + 0.5*[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
+test_x0_set = [x0 + [0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
 test_expert_traj_list, c_test_expert = generate_expert_traj(game, solver, test_x0_set, num_test);
 
 
@@ -366,7 +367,7 @@ obs_time_list = 1:game_horizon-1
 obs_state_list = 1:nx
 obs_control_list = 1:nu
 index = 1
-for noise in 1:length(noise_level_list)
+Threads.@threads for noise in 1:length(noise_level_list)
     for ii in 1:num_obs
         tmp_expert_traj_x = noisy_expert_traj_list[index][noise][ii].x
         tmp_expert_traj_u = noisy_expert_traj_list[index][noise][ii].u
@@ -403,7 +404,7 @@ jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_
     inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
     test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs,)
 
-jldsave("KKT_inverse_compact_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
+jldsave("KKT_inverse_compact_20$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
     inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
     test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs)
 # for ii in 1:num_clean_traj

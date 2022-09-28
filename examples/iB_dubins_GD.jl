@@ -70,19 +70,6 @@ end
 # Y2: generalization loss, mean and variance
 
 
-
-θ_true = [8,0,4,4]
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 20
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 4*(x[3]^2 + x[4]^2) + 6*(u[1]^2 + u[2]^2))),
-         FunctionPlayerCost((g, x, u, t) -> ( 4*((x[1]-x[3])^2 + (x[2]-x[4])^2) + 6*(u[3]^2 + u[4]^2))))
-dynamics = LTISystem(LinearSystem{ΔT}(SMatrix{4,4}(Matrix(1.0*I,4,4)), SMatrix{4,4}(Matrix(1.0*I,4,4))), 
-                SVector(1, 2, 3, 4))
-player_inputs = (SVector(1,2), SVector(3,4))
-game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-
-
-solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
-
 GD_iter_num = 50
 num_clean_traj = 1
 noise_level_list = 0.01:0.01:0.03
@@ -95,7 +82,7 @@ x0_set = [x0 for ii in 1:num_clean_traj]
 # costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 + u[2]^2)),
 #          FunctionPlayerCost((g, x, u, t) -> ( 2*(x[1]-x[3])^2 + 2*(x[2]-x[4])^2 + u[3]^2 + u[4]^2)))
 # player_inputs = (SVector(1,2), SVector(3,4))
-expert_traj_list, c_expert = generate_expert_traj(game, solver, x0_set, num_clean_traj)
+expert_traj_list, c_expert = generate_expert_traj(g, solver2, x0_set, num_clean_traj)
 if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
     @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
 end
@@ -114,7 +101,6 @@ for ii in 1:num_clean_traj
     end
 end
 
-@everywhere begin
 conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 sol_table_list = deepcopy(conv_table_list);
 loss_table_list = deepcopy(conv_table_list);
@@ -130,13 +116,12 @@ state_prediction_error_list_list = deepcopy(conv_table_list);
 # generalization_error_list = deepcopy(conv_table_list);
 ground_truth_loss_list = deepcopy(conv_table_list);
 θ₀ = ones(3);
-end
 
 num_generalization = 6
 # test_x0_list = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization]
 
 # ---------------------------------------------------------------  (1)
-Threads.@threads for ii in 1:num_clean_traj
+for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 

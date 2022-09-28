@@ -21,19 +21,21 @@ include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined ther
 
 
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 9, 4, 0.1, 40
+nx, nu, ΔT, game_horizon = 12, 6, 0.1, 40
 
 # setup the dynamics
-struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end
+struct ThreeCars <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
 dx(cs::DoubleUnicycle, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
-                                    x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4], 0)
-dynamics = DoubleUnicycle()
+                                    x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4],
+                                    x[12]cos(x[11]) , x[12]sin(x[11]), u[5], u[6])
+dynamics = ThreeCars()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> ( 6*(x[5]-x[9])^2 + 0*(x[1])^2 + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
 #          FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
 costs = (FunctionPlayerCost((g, x, u, t) -> (  8*(x[5]-x[9])^2  +  2*(u[1]^2 + u[2]^2) )),
-         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-x[1])^2  +  4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ))   )
+         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-x[1])^2  +  4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) )),
+         FunctionPlayerCost((g, x, u, t) -> (    +  2*(u[5]^2 + u[6]^2) ))   )
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
