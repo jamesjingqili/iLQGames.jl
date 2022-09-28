@@ -4,9 +4,9 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
                 nominal_solver=[], nominal_traj=[], obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, no_control=false) 
     x0 = first(expert_traj.x)
     if no_control == true
-        ctrl_coeff = 1
-    else
         ctrl_coeff = 0
+    else
+        ctrl_coeff = 1
     end
     if gradient_mode == false
         nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
