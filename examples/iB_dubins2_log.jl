@@ -32,7 +32,7 @@ dynamics = ThreeCars()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> ( 6*(x[5]-x[9])^2 + 0*(x[1])^2 + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
 #          FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> (  10*(x[1]-1)^2 +4*(x[8]-0.5)^2 + 4*(x[4]-0.6)^2 + 2*(x[3]-pi/2)^2 + 2*(u[1]^2 + u[2]^2) - 0.1*log((x[1]-x[5])^2 + (x[2]-x[6])^2) )),
+costs = (FunctionPlayerCost((g, x, u, t) -> (  10*(x[1]-1)^2 +10*(x[8]-0.5)^2 + 4*(x[4]-0.6)^2 + 2*(x[3]-pi/2)^2 + 2*(u[1]^2 + u[2]^2) - 0.1*log((x[1]-x[5])^2 + (x[2]-x[6])^2) )),
          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-1)^2  + 2*(x[7]-pi/2)^2 + 2*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ) -0.1*log((x[1]-x[5])^2 + (x[2]-x[6])^2) ))
 
 # indices of inputs that each player controls

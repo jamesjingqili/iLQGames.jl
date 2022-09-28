@@ -90,28 +90,28 @@ end
 
 
 # line search
-function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, max_GD_iteration_num::Int, 
-										parameterized_cost, equilibrium_type)
-	α = 1.0
-	current_loss, current_traj, current_str = inverse_game_loss(θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
-	θ_next = θ
-	new_loss = 0.0
-	# gradient = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
-	gradient = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj), θ)
-	for iter in 1:max_GD_iteration_num
-		θ_next = θ-α*gradient
-		new_loss, new_traj, new_str = inverse_game_loss(θ_next, g, expert_traj, x0, parameterized_cost, equilibrium_type)
-		if new_loss < current_loss
-			println("Inverse Game Line Search Step Size: ", α)
-			return θ_next, new_loss, gradient
+# function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, max_GD_iteration_num::Int, 
+# 										parameterized_cost, equilibrium_type)
+# 	α = 1.0
+# 	current_loss, current_traj, current_str = inverse_game_loss(θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
+# 	θ_next = θ
+# 	new_loss = 0.0
+# 	# gradient = inverse_game_gradient(current_loss, θ, g, expert_traj, x0, parameterized_cost, equilibrium_type)
+# 	gradient = ForwardDiff.gradient(x -> loss(x, equilibrium_type, expert_traj), θ)
+# 	for iter in 1:max_GD_iteration_num
+# 		θ_next = θ-α*gradient
+# 		new_loss, new_traj, new_str = inverse_game_loss(θ_next, g, expert_traj, x0, parameterized_cost, equilibrium_type)
+# 		if new_loss < current_loss
+# 			println("Inverse Game Line Search Step Size: ", α)
+# 			return θ_next, new_loss, gradient
 			
-			break
-		end
-		α = α*0.5
-		println("inverse game line search not well")
-	end
-	return θ_next, new_loss, gradient
-end
+# 			break
+# 		end
+# 		α = α*0.5
+# 		println("inverse game line search not well")
+# 	end
+# 	return θ_next, new_loss, gradient
+# end
 
 
 
