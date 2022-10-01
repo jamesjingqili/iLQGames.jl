@@ -130,8 +130,11 @@ test_x0_set = [x0+rand(1)[1]*[0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0,1] for ii i
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
 
-solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
+# solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
 
+obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
+obs_state_list = [1,3,5,7,8]
+obs_control_list = 1:nu
 
 for ii in 1:num_clean_traj
 
@@ -140,7 +143,7 @@ for ii in 1:num_clean_traj
         println("Now the $(jj)-th observation")
         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,_ = run_experiment(g,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.001, true, 10.0,[],true,false,[],true)
+                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.001, true, 10.0,[],true,false,[],true)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -197,7 +200,7 @@ end
 
 
 using JLD2
-jldsave("GD_full_2car_0.1_20$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+jldsave("GD_no_control_2car_0.1_20_partial$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
@@ -403,8 +406,8 @@ tmp4 = [mean(optim_loss_list_list[1][ii])[1] for ii in 1:num_noise_level]
 tmp5 = [ground_truth_loss_list[1][ii][1] for ii in 1:num_noise_level]
 tmp6 = [mean(generalization_error_list[1][ii])[1] for ii in 1:num_noise_level]
 
-plot(noise_level_list, tmp1, ribbons=(tmp1_var, tmp1_var), line=:dash, color="red", label = "inverse KKT OLNE, distance to noisy observation data", xlabel="noise variance", size = (900,400),legend = :outerleft)
-plot!(noise_level_list, tmp2,ribbons=(tmp2_var, tmp2_var),line=:dash, color="blue", label = "inverse KKT OLNE, distance to no-noise data")
+plot(noise_level_list, tmp1, ribbons=(tmp1_var, tmp1_var), line=:dash, color="red", label = "inverse KKT OLNE, distance to noisy observation data", xlabel="noise variance", size = (900,500),legend = :outerleft)
+plot!(noise_level_list, tmp2,ribbons=(tmp2_var, tmp2_var),line=:dash, color="blue", label = "inverse KKT OLNE, distance to ground truth data")
 plot!(noise_level_list, tmp3,ribbons=(tmp3_var, tmp3_var),line=:dash, color="orange", label = "inverse KKT OLNE, generalization loss")
 
 plot!(noise_level_list, tmp4, color="red", label="Inverse FBNE, distance to observation data")
@@ -419,8 +422,9 @@ tmp14_var = [var(optim_loss_list_list[1][ii][1]) for ii in 1:num_noise_level]
 tmp15_var = [var(list_ground_truth_loss[1][jj][1]) for jj in 1:num_noise_level]
 tmp16_var = [var(list_generalization_loss[1][jj][1]) for jj in 1:num_noise_level]
 plot!(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var), color="red", label="Inverse FBNE, distance to noisy observation data")
-plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var), color="blue", label = "Inverse FBNE, distance to no-noise data")
+plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var), color="blue", label = "Inverse FBNE, distance to ground truth data")
 plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var), color="orange", label="Inverse FBNE, generalization loss")
+
 savefig("10_8_all.pdf")
 
 
@@ -433,4 +437,85 @@ plot(noise_level_list, ttt["tmp14"], ribbons = (ttt["tmp14_var"], ttt["tmp14_var
 plot!(noise_level_list, ttt["tmp15"], ribbons = (ttt["tmp15_var"], ttt["tmp15_var"]))
 # plot!(noise_level_list, ttt["tmp16"], ribbons = (ttt["tmp16_var"], ttt["tmp16_var"]))
 plot!(noise_level_list, ttt["tmp16"])
+
+
+# ----------------------------------------------------------------------------------------------------
+# plot
+t1 = load("GD_2_cars_no_control")
+t2 = load("KKT_2_cars_no_control")
+
+tmp1 = [mean(t1["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp2 = [mean(t1["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp3 = [mean(t1["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp1_var = [var(t1["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp2_var = [var(t1["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp3_var = [var(t1["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp14, tmp15, tmp16, tmp14_var, tmp15_var, tmp16_var = t2["tmp14"], t2["tmp15"], t2["tmp16"], t2["tmp14_var"], t2["tmp15_var"], t2["tmp16_var"]
+plt=plot()
+plt=plot(noise_level_list, tmp1, ribbons=(tmp1_var, tmp1_var),alpha=1, line=:dash,linewidth=3, color="red", label = "inverse KKT OLNE, distance to noisy observation data", xlabel="noise variance", size = (700,500),legend = :topright,ylims=(0,10))
+plt=plot!(noise_level_list, tmp2,ribbons=(tmp2_var, tmp2_var),alpha=1,line=:dash,linewidth=3, color="blue", label = "inverse KKT OLNE, distance to ground truth data")
+plt=plot!(noise_level_list, tmp3,ribbons=(tmp3_var, tmp3_var),alpha=1,line=:dash,linewidth=3, color="orange", label = "inverse KKT OLNE, generalization loss")
+plt=plot!(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var),alpha=1, color="red",linewidth=3, label="Inverse FBNE, distance to noisy observation data")
+plt=plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var),alpha=1, color="blue",linewidth=3, label = "Inverse FBNE, distance to ground truth data")
+plt=plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var),alpha=1, color="orange",linewidth=3, label="Inverse FBNE, generalization loss")
+
+for ii in 1:10
+    plt=scatter!(noise_level_list, [t1["inv_loss_list"][jj][ii][1] for jj in 1:num_noise_level], markershape=:x,alpha=0.1, color="red", label="")
+    plt=scatter!(noise_level_list, [t1["inv_ground_truth_loss_list"][jj][ii][1] for jj in 1:num_noise_level], markershape=:x,alpha=0.1, color="blue", label="")
+    plt=scatter!(noise_level_list, [t1["inv_mean_generalization_loss_list"][jj][ii][1] for jj in 1:num_noise_level], markershape=:x,alpha=0.1, color="orange", label="")
+    plt=scatter!(noise_level_list, [t2["optim_loss_list_list"][1][jj][1][ii] for jj in 1:num_noise_level], markershape=:x,alpha=0.1, color="red", label="")
+    plt=scatter!(noise_level_list, [t2["list_ground_truth_loss"][1][jj][1][ii] for jj in 1:num_noise_level], markershape=:x,alpha=0.1, color="red", label="")
+    plt=scatter!(noise_level_list, [t2["list_generalization_loss"][1][jj][1][ii] for jj in 1:num_noise_level], markershape=:x,alpha=0.1, color="red", label="")
+end
+display(plt)
+
+savefig("20_no_control_full.pdf")
+
+savefig("20_no_control_partial.pdf")
+
+
+# t1["noisy_expert_traj_list"][1][1][1].x
+# obs_time_list = t2["obs_time_list"]
+obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
+
+obs_state_list = t2["obs_state_list"]
+
+game_horizon = length(t1["expert_traj_list"][1].x)
+
+plot_size = (1000,600)
+noise = 9
+subplt1 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], color="red", label="player 1, ground truth, σ = $(t1["noise_level_list"][noise])", size = plot_size, xlabel="x", ylabel="y")
+subplt1 = plot!([t1["expert_traj_list"][1].x[t][5] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, ground truth, σ = $(t1["noise_level_list"][noise])")
+subplt1 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][1] for t in 1:game_horizon], [t1["noisy_expert_traj_list"][1][noise][1].x[t][2] for t in 1:game_horizon], color="red",label="player 1, noisy observation full, σ = $(t1["noise_level_list"][noise])")
+subplt1 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][5] for t in 1:game_horizon], [t1["noisy_expert_traj_list"][1][noise][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, noisy observation full, σ = $(t1["noise_level_list"][noise])")
+display(subplt1)
+noise = 9
+subplt2 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], color="red", label="player 1, ground truth, σ = $(t1["noise_level_list"][noise])", size = plot_size, xlabel="x", ylabel="y")
+subplt2 = plot!([t1["expert_traj_list"][1].x[t][5] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, ground truth, σ = $(t1["noise_level_list"][noise])")
+subplt2 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][1] for t in obs_time_list], [t1["noisy_expert_traj_list"][1][noise][1].x[t][2] for t in obs_time_list], markershape=:x, color="red",label="player 1, noisy observation partial, σ = $(t1["noise_level_list"][noise])")
+subplt2 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][5] for t in obs_time_list], [t1["noisy_expert_traj_list"][1][noise][1].x[t][6] for t in obs_time_list], markershape=:x, color="blue",label="player 2, noisy observation partial, σ = $(t1["noise_level_list"][noise])")
+display(subplt2)
+noise = 19
+subplt3 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], color="red", label="player 1, ground truth, σ = $(t1["noise_level_list"][noise])", size = plot_size, xlabel="x", ylabel="y")
+subplt3 = plot!([t1["expert_traj_list"][1].x[t][5] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, ground truth, σ = $(t1["noise_level_list"][noise])")
+subplt3 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][1] for t in 1:game_horizon], [t1["noisy_expert_traj_list"][1][noise][1].x[t][2] for t in 1:game_horizon], color="red",label="player 1, noisy observation full, σ = $(t1["noise_level_list"][noise])")
+subplt3 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][5] for t in 1:game_horizon], [t1["noisy_expert_traj_list"][1][noise][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, noisy observation full, σ = $(t1["noise_level_list"][noise])")
+display(subplt3)
+noise=19
+subplt4 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], color="red", label="player 1, ground truth, σ = $(t1["noise_level_list"][noise])", size = plot_size, xlabel="x", ylabel="y")
+subplt4 = plot!([t1["expert_traj_list"][1].x[t][5] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, ground truth, σ = $(t1["noise_level_list"][noise])")
+subplt4 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][1] for t in obs_time_list], [t1["noisy_expert_traj_list"][1][noise][1].x[t][2] for t in obs_time_list], markershape=:x, color="red",label="player 1, noisy observation partial, σ = $(t1["noise_level_list"][noise])")
+subplt4 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][5] for t in obs_time_list], [t1["noisy_expert_traj_list"][1][noise][1].x[t][6] for t in obs_time_list], markershape=:x, color="blue",label="player 2, noisy observation partial, σ = $(t1["noise_level_list"][noise])")
+display(subplt4)
+
+fullplt = plot(subplt1, subplt3, subplt2, subplt4, layout=(2,2))
+display(fullplt)
+
+savefig(fullplt, "visualization_noise_level.pdf")
+
+
+
+t1 = load("GD_2cars_partial") # Oct. 1st
+t2 = load("20_2cars_nocontrol_new") # Oct 1st
+
 

@@ -383,9 +383,12 @@ test_x0_set = [x0 + [0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
 test_expert_traj_list, c_test_expert = generate_expert_traj(game, solver, test_x0_set, num_test);
 
 
-obs_time_list = 1:game_horizon-1
-obs_state_list = 1:nx
-obs_control_list = 1:nu
+obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
+obs_state_list = [1,3,5,7,8]
+obs_control_list=[]
+# obs_time_list = 1:game_horizon-1
+# obs_state_list = 1:nx
+# obs_control_list = 1:nu
 index = 1
 Threads.@threads for noise in 1:length(noise_level_list)
     for ii in 1:num_obs
@@ -400,13 +403,13 @@ Threads.@threads for noise in 1:length(noise_level_list)
         tmp_inv_loss = objective_value(tmp_inv_model)
         println("The $(ii)-th observation of $(noise)-th noise level")
         # solution_summary(tmp_inv_model)
-        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], obs_time_list, obs_state_list, obs_control_list) 
+        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], obs_time_list, obs_state_list, obs_control_list, false) 
         # @infiltrate
         # tmp_test_sol = [[] for jj in 1:num_test]
         tmp_test_loss_value = zeros(num_test)
         for jj in 1:num_test
             # @infiltrate
-            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],obs_time_list, obs_state_list, obs_control_list)
+            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],obs_time_list, obs_state_list, obs_control_list,false)
         end
         # @infiltrate
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
@@ -426,9 +429,9 @@ jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_
     inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
     test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs,)
 
-jldsave("KKT_inverse_compact_20$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
+jldsave("KKT_inverse_compact_20_no_control_partial$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_ground_truth_loss_list,
     inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
-    test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, KKT_highway_forward_game_solve, KKT_highway_inverse_game_solve, dynamics, nx, nu, game_horizon, g, solver1, costs)
+    test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, dynamics, nx, nu, game_horizon, g, solver1, costs)
 # for ii in 1:num_clean_traj
 #     for jj in 1:num_noise_level
 #         conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
