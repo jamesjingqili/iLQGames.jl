@@ -167,27 +167,14 @@ function trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
         uₖ = control_input(γₖ, Δxₖ, ũₖ)
         push!(xs, xₖ)
         push!(us, uₖ)
-        @infiltrate
+        # @infiltrate
         next_x(dynamics(g), xₖ, uₖ, 0.0)
     end
     vectype = StaticArrays.SizedVector{length(γ)}
     SystemTrajectory{0.1}(vectype(xs), vectype(us), 0.0) # loses information
 end
 
-function x0_relaxed_trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
-    xs, us = StaticArrays.SVector{n_states(g)}[], StaticArrays.SVector{n_controls(g)}[]
-    reduce(zip(γ, op.x, op.u); init = x0) do xₖ, (γₖ, x̃ₖ, ũₖ)
-        Δxₖ = xₖ - x̃ₖ
-        uₖ = control_input(γₖ, Δxₖ, ũₖ)
-        push!(xs, xₖ)
-        push!(us, uₖ)
-        # next_x(dynamics(g), xₖ, uₖ, 0.0)
-        @infiltrate
-        integrate(dynamics(g), xₖ, uₖ, 0.0, ΔT)
-    end
-    vectype = StaticArrays.SizedVector{length(γ)}
-    SystemTrajectory{0.1}(vectype(xs), vectype(us), 0.0) # loses information
-end
+
 
 function integrate(cs, x0, u, t0,
                    ΔT, n_intsteps=2)

@@ -47,7 +47,7 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
     if x0_mode==false
         x0 = first(expert_traj.x)
     end
-    @infiltrate
+    # @infiltrate
     if no_control == true
         ctrl_coeff = 0
     else
@@ -64,20 +64,19 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
         return loss_value, nominal_traj, nominal_strategies, nominal_solver
     else
         if x0_mode==true
-            var_x0 = [x0[ii] for ii in 1:length(x0)]
             if specified_solver_and_traj == false
                 nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
                 nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)
-                nominal_converged, nominal_traj, nominal_strategies = solve(nominal_game, nominal_solver, SVector{length(var_x0)}(ForwardDiff.value.(var_x0)))
+                nominal_converged, nominal_traj, nominal_strategies = solve(nominal_game, nominal_solver, SVector{length(x0)}(ForwardDiff.value.(x0)))
             end
             costs = parameterized_cost(θ)
             game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
             lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
-            @infiltrate
+            # @infiltrate
             if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-                traj = Differentiable_Solvers.x0_relaxed_trajectory(var_x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
             elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-                traj = Differentiable_Solvers.x0_relaxed_trajectory(var_x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
             else
                 @warn "equilibrium_type is wrong!"
             end
@@ -93,7 +92,7 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
             costs = parameterized_cost(θ)
             game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
             lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
-            @infiltrate
+            # @infiltrate
             if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
                 traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
             elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
