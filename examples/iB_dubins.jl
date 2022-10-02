@@ -57,6 +57,10 @@ end
 # θ_true = [10, 1, 1, 4, 1]
 θ_true = [8, 0, 4, 4]
 
+# ForwardDiff.gradient(x -> loss([8,0,4,4], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x), [0.02,0.5, pi/2, 1, 1,0,pi/2,1,0.1])
+# ForwardDiff.gradient(x -> loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, []), [9,0,4,4])
+
+
 # x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
 # x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
 # anim2 = @animate for i in 1:game_horizon

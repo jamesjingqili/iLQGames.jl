@@ -173,3 +173,9 @@ function next_x(cs::ControlSystem, x::SVector, u::SVector, t::Float64)
     @assert issampled(cs) "next_x requires `ControlSystem` with ΔT > 0."
     return integrate(cs, x, u, t, samplingtime(cs))
 end
+
+# function next_x(cs::DoubleUnicycle, x::SVector, u::SVector, t::Float64)
+#     @assert issampled(cs) "next_x requires `ControlSystem` with ΔT > 0."
+#     return integrate(cs, x, u, t, samplingtime(cs))
+# end
+

@@ -77,6 +77,8 @@ function next_x(cs::ProductSystem, x::SVector, u::SVector, t::Float64)
     return vcat(xs...)
 end
 
+
+
 # computing large matrix exponentials is expensive. Therefore, we exploit the
 # sparsity of the dynamics and compute the linearization for each subsystems
 @inline function linearize_discrete(cs::ProductSystem, x::SVector, u::SVector, t::AbstractFloat)

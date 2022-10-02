@@ -167,10 +167,40 @@ function trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
         uₖ = control_input(γₖ, Δxₖ, ũₖ)
         push!(xs, xₖ)
         push!(us, uₖ)
+        @infiltrate
         next_x(dynamics(g), xₖ, uₖ, 0.0)
     end
     vectype = StaticArrays.SizedVector{length(γ)}
     SystemTrajectory{0.1}(vectype(xs), vectype(us), 0.0) # loses information
+end
+
+function x0_relaxed_trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
+    xs, us = StaticArrays.SVector{n_states(g)}[], StaticArrays.SVector{n_controls(g)}[]
+    reduce(zip(γ, op.x, op.u); init = x0) do xₖ, (γₖ, x̃ₖ, ũₖ)
+        Δxₖ = xₖ - x̃ₖ
+        uₖ = control_input(γₖ, Δxₖ, ũₖ)
+        push!(xs, xₖ)
+        push!(us, uₖ)
+        # next_x(dynamics(g), xₖ, uₖ, 0.0)
+        @infiltrate
+        integrate(dynamics(g), xₖ, uₖ, 0.0, ΔT)
+    end
+    vectype = StaticArrays.SizedVector{length(γ)}
+    SystemTrajectory{0.1}(vectype(xs), vectype(us), 0.0) # loses information
+end
+
+function integrate(cs, x0, u, t0,
+                   ΔT, n_intsteps=2)
+    Δt = ΔT/n_intsteps
+    x = x0
+    for t in range(t0, stop=t0+ΔT, length=n_intsteps+1)[1:end-1]
+        k1 = Δt * dx(cs, x, u, t);
+        k2 = Δt * dx(cs, x + 0.5 * k1, u, t + 0.5 * Δt);
+        k3 = Δt * dx(cs, x + 0.5 * k2, u, t + 0.5 * Δt);
+        k4 = Δt * dx(cs, x + k3      , u, t + Δt);
+        x += (k1 + 2.0 * (k2 + k3) + k4) / 6.0;
+    end
+    return x
 end
 
 "A type relaxed version of lq_approximation! without side effects and gradient
