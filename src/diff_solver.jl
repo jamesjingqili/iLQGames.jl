@@ -167,7 +167,6 @@ function trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
         uₖ = control_input(γₖ, Δxₖ, ũₖ)
         push!(xs, xₖ)
         push!(us, uₖ)
-        # @infiltrate
         next_x(dynamics(g), xₖ, uₖ, 0.0)
     end
     vectype = StaticArrays.SizedVector{length(γ)}
@@ -175,20 +174,6 @@ function trajectory(x0, g, γ, op = zero(SystemTrajectory, g))
 end
 
 
-
-function integrate(cs, x0, u, t0,
-                   ΔT, n_intsteps=2)
-    Δt = ΔT/n_intsteps
-    x = x0
-    for t in range(t0, stop=t0+ΔT, length=n_intsteps+1)[1:end-1]
-        k1 = Δt * dx(cs, x, u, t);
-        k2 = Δt * dx(cs, x + 0.5 * k1, u, t + 0.5 * Δt);
-        k3 = Δt * dx(cs, x + 0.5 * k2, u, t + 0.5 * Δt);
-        k4 = Δt * dx(cs, x + k3      , u, t + Δt);
-        x += (k1 + 2.0 * (k2 + k3) + k4) / 6.0;
-    end
-    return x
-end
 
 "A type relaxed version of lq_approximation! without side effects and gradient
 optimzation"
