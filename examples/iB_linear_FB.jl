@@ -254,7 +254,7 @@ index_list_list = deepcopy(conv_table_list);
 optim_loss_list_list = deepcopy(conv_table_list);
 state_prediction_error_list_list = deepcopy(conv_table_list);
 generalization_error_list = deepcopy(conv_table_list);
-θ₀ = ones(3);
+θ₀ = ones(4);
 end
 
 num_generalization = 6

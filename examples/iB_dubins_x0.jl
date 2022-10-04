@@ -88,10 +88,10 @@ end
 
 GD_iter_num = 50
 num_clean_traj = 1
-noise_level_list = 0.004:0.002:0.02
+noise_level_list = 0.004:0.002:0.04
 # noise_level_list=[0.0]
 num_noise_level = length(noise_level_list)
-num_obs = 1
+num_obs = 10
 games = []
 x0_set = [x0 for ii in 1:num_clean_traj]
 # θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
@@ -130,7 +130,7 @@ ground_truth_loss_list = deepcopy(conv_table_list);
 
 θ₀ = 4*ones(4);
 
-num_test=10
+num_test=6
 test_x0_set = [x0+rand(1)[1]*[0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0,1] for ii in 1:num_test]
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
@@ -155,11 +155,11 @@ for ii in 1:num_clean_traj
                                                                                                 true, 10.0,[],true,false,[],true,
                                                                                                 10, 0.1, 0.1)
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
-        # generalization_error = zeros(num_test)
-        # ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
-        # for kk in 1:num_test
-        #     generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],1:g.h-1, 1:nx, 1:nu)
-        # end
+        generalization_error = zeros(num_test)
+        ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
+        for kk in 1:num_test
+            generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],1:g.h-1, 1:nx, 1:nu)
+        end
         push!(conv_table_list[ii][jj], conv_table)
         push!(x0_table_list[ii][jj], x0_table)
         push!(sol_table_list[ii][jj], sol_table)
@@ -182,14 +182,19 @@ list_generalization_loss = [[[] for jj in 1:num_noise_level] for ii in 1:num_cle
 for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
         tmp_ground_truth_loss = zeros(num_obs)
-        tmp_generalization_loss = zeros(num_test)
+        tmp_generalization_loss = zeros(num_obs)
         for kk in 1:num_obs
-            @infiltrate
+            tmp = zeros(num_test)
             tmp_ground_truth_loss[kk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false, [],[],1:g.h-1, 1:nx, 1:nu)
+            for kkk in 1:6
+                tmp[kkk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kkk], true, false,[],[],1:g.h-1, 1:nx, 1:nu)
+            end
+            tmp_generalization_loss[kk] = mean(tmp)
+            println("Current iteration: $(jj), $(kk)")
         end
-        for kk in 1:num_test
-            tmp_generalization_loss[kk] = loss(θ_list_list[ii][jj][1][1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], true, false,[],[],1:g.h-1, 1:nx, 1:nu)
-        end
+        # for kk in 1:num_test
+        #     tmp_generalization_loss[kk] = loss(θ_list_list[ii][jj][1][1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], true, false,[],[],1:g.h-1, 1:nx, 1:nu)
+        # end
         push!(list_ground_truth_loss[ii][jj], tmp_ground_truth_loss)
         push!(list_generalization_loss[ii][jj], tmp_generalization_loss)
     end
@@ -202,7 +207,7 @@ end
 
 
 using JLD2
-jldsave("GD_no_control_2car_0.1_20_partial$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+jldsave("GD_no_control_2car_0.1_20_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 

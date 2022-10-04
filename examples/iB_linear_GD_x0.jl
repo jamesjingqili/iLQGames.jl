@@ -189,7 +189,6 @@ end
 
 include("experiment_utils.jl")
 
-@everywhere begin
 
 function parameterized_cost(θ::Vector)
     costs = (FunctionPlayerCost((g, x, u, t) -> ( θ[1]*(x[1]^2 + x[2]^2) + θ[2]*(x[3]^2 + x[4]^2) + 6*(u[1]^2 + u[2]^2))),
@@ -210,7 +209,7 @@ solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equil
 
 GD_iter_num = 50
 num_clean_traj = 1
-noise_level_list = 0.0:0.2:0.4
+noise_level_list = 0.02:0.02:0.2
 num_noise_level = length(noise_level_list)
 num_obs = 10
 x0 = SVector(0, 10, 10,10)
@@ -228,7 +227,6 @@ end
 # c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","OLNE_costate"])
 noisy_expert_traj_list = [[[zero(SystemTrajectory, game) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 
-end
 
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
@@ -242,9 +240,10 @@ Threads.@threads for ii in 1:num_clean_traj
     end
 end
 
-@everywhere begin
+
 conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
 sol_table_list = deepcopy(conv_table_list);
+x0_table_list = deepcopy(conv_table_list);
 loss_table_list = deepcopy(conv_table_list);
 grad_table_list = deepcopy(conv_table_list);
 equi_table_list = deepcopy(conv_table_list);
@@ -257,18 +256,20 @@ optim_loss_list_list = deepcopy(conv_table_list);
 state_prediction_error_list_list = deepcopy(conv_table_list);
 # generalization_error_list = deepcopy(conv_table_list);
 ground_truth_loss_list = deepcopy(conv_table_list);
-θ₀ = ones(4);
-end
+θ₀ = 4*ones(4);
 
 num_generalization = 6
 # test_x0_list = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization]
 
 # ---------------------------------------------------------------  (1)
+# full observation. Only 
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        conv_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
+        conv_table,x0_table, sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment_x0(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
-                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, expert_traj_list[ii], false, true, "LQ")
+                                                                                                1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, 
+                                                                                                expert_traj_list[ii], false, false, [], true, 10, 0.1 ,0.1)
+        @infiltrate
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
@@ -278,6 +279,7 @@ Threads.@threads for ii in 1:num_clean_traj
         # push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)
+        push!(x0_table_list[ii][jj], x0_table)
         push!(loss_table_list[ii][jj], loss_table)
         push!(grad_table_list[ii][jj], grad_table)
         push!(equi_table_list[ii][jj], equi_table)
@@ -502,15 +504,14 @@ plot!([expert_traj_list[1].x[t][1] for t in 1:game_horizon], [expert_traj_list[1
 plot!([expert_traj_list[1].x[t][3] for t in 1:game_horizon], [expert_traj_list[1].x[t][4] for t in 1:game_horizon],  color="blue", label="ground truth trajectory of player 2")
 
 
-noise=3
-
-ttt=loss(sol_table_list[1][3][1][2][end], dynamics, "FBNE_costate", expert_traj_list[1], false, false, 
-                [], [], obs_time_list, obs_state_list, obs_control_list) 
-ttt=loss(θ_list_list[1][noise][1][2], dynamics, "FBNE_costate", expert_traj_list[1], false, false, 
-                [], [], obs_time_list, obs_state_list, obs_control_list) 
+noise=1
+ttt=loss(θ_list_list[1][noise][1][1], dynamics, "FBNE_costate", noisy_expert_traj_list[1][noise][1], false, false, 
+                [], [], 1:game_horizon-1, 1:nx, 1:nu, true, true, x0_table_list[1][1][1][1][index_list_list[1][1][1][1]]) 
 
 plot([ttt[2].x[t][1] for t in 1:game_horizon], [ttt[2].x[t][2] for t in 1:game_horizon], line=(:dashdot), color="red", label="predicted trajectory of player 1, σ = $(noise_level_list[noise])")
 plot!([ttt[2].x[t][3] for t in 1:game_horizon], [ttt[2].x[t][4] for t in 1:game_horizon], line=(:dashdot), color="blue", label="predicted trajectory of player 2, σ = $(noise_level_list[noise])")
 plot!([expert_traj_list[1].x[t][1] for t in 1:game_horizon], [expert_traj_list[1].x[t][2] for t in 1:game_horizon], color="red", label="ground truth trajectory of player 1")
 plot!([expert_traj_list[1].x[t][3] for t in 1:game_horizon], [expert_traj_list[1].x[t][4] for t in 1:game_horizon],  color="blue", label="ground truth trajectory of player 2")
+scatter!([noisy_expert_traj_list[1][noise][1].x[t][1] for t in 1:game_horizon], [noisy_expert_traj_list[1][noise][1].x[t][2] for t in 1:game_horizon], color="red", label="ground truth trajectory of player 1")
+scatter!([noisy_expert_traj_list[1][noise][1].x[t][3] for t in 1:game_horizon], [noisy_expert_traj_list[1][noise][1].x[t][4] for t in 1:game_horizon],  color="blue", label="ground truth trajectory of player 2")
 
