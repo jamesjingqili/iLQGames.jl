@@ -209,7 +209,7 @@ solver = iLQSolver(game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equil
 
 GD_iter_num = 50
 num_clean_traj = 1
-noise_level_list = 0.02:0.02:0.2
+noise_level_list = 0.0:0.04:0.2
 num_noise_level = length(noise_level_list)
 num_obs = 10
 x0 = SVector(0, 10, 10,10)
@@ -257,26 +257,32 @@ state_prediction_error_list_list = deepcopy(conv_table_list);
 # generalization_error_list = deepcopy(conv_table_list);
 ground_truth_loss_list = deepcopy(conv_table_list);
 θ₀ = 4*ones(4);
-
+obs_time_list = 1:game_horizon-1
 num_generalization = 6
 # test_x0_list = [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization]
 
+# obs_x0_list = [x0_set[1] for kk in 1:num_obs]
+init_x0_list = deepcopy(conv_table_list);
+
 # ---------------------------------------------------------------  (1)
 # full observation. Only 
+obs_x0_list = [x0_set[1] for kk in 1:num_obs]
+
 Threads.@threads for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        conv_table,x0_table, sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment_x0(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
+        init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1] for kk in 1:num_obs]
+        conv_table,x0_table, sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment_x0(game, θ₀, init_x0, 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
                                                                                                 1:game_horizon-1,1:nx, 1:nu, "FBNE_costate", 0.00000000001, false, 10.0, 
                                                                                                 expert_traj_list[ii], false, false, [], true, 10, 0.1 ,0.1)
-        @infiltrate
-        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
+        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single(init_x0, ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         # state_prediction_error_list = loss(θ_list[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
         # generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
         #                             expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
         
         # push!(state_prediction_error_list_list[ii][jj], state_prediction_error_list)
+        push!(init_x0_list[ii][jj], init_x0)
         push!(conv_table_list[ii][jj], conv_table)
         push!(sol_table_list[ii][jj], sol_table)
         push!(x0_table_list[ii][jj], x0_table)
@@ -294,14 +300,21 @@ Threads.@threads for ii in 1:num_clean_traj
 end
 
 using JLD2
+jldsave("GD_LQ_x0_full$(Dates.now())"; noise_level_list, nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, noisy_expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list,
+    ground_truth_loss_list, x0_table_list, obs_time_list, obs_state_list, obs_control_list, init_x0_list)
+
+
 jldsave("GD_full_10_$(Dates.now())"; noise_level_list, nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, 
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, mean_GD,var_GD, 
     mean_predictions, variance_predictions, mean_predictions_loss, variance_predictions_loss)
 
 # ---------------------------------------------------------------  (2)
+
 using Random
-num_time = 10
+# num_time = 10
 # obs_time_list = sort!(shuffle(1:game_horizon-1)[1:num_time])
 obs_time_list = [1,2,3,4, 10,11,12,13]
 
@@ -320,23 +333,33 @@ optim_loss_list_list1 = deepcopy(conv_table_list1);
 state_prediction_error_list_list1 = deepcopy(conv_table_list1);
 generalization_error_list1 = deepcopy(conv_table_list1);
 ground_truth_loss_list1 = deepcopy(conv_table_list1);
+x0_table_list1 = deepcopy(conv_table_list);
+init_x0_list1 = deepcopy(conv_table_list);
 
 obs_state_list = [1,2,3]
 obs_control_list = [1,2,3,4]
 
-Threads.@threads for ii in 1:num_clean_traj
+# [noisy_expert_traj_list[1][noise].*[1,1,1,0]+rand(4).*[0,0,0,1] for kk in 1:num_obs]
+
+
+
+for ii in 1:num_clean_traj
     for jj in 1:num_noise_level
-        conv_table1,sol_table1,loss_table1,grad_table1,equi_table1,iter_table1,ground_truth_loss1=run_experiment(game,θ₀,[x0_set[ii] for kk in 1:num_obs], 
+        init_x0 =[noisy_expert_traj_list[ii][jj][kk].x[1] for kk in 1:num_obs]
+        
+        conv_table1,x0_table1,sol_table1,loss_table1,grad_table1,equi_table1,iter_table1,ground_truth_loss1=run_experiment_x0(game,θ₀,init_x0, 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-8, 
                                                                                                 obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.00000001, false, 10, 
-                                                                                                expert_traj_list[ii], false, true, "LQ")
-        θ_list1, index_list1, optim_loss_list1 = get_the_best_possible_reward_estimate_single([x0_set[ii] for kk in 1:num_obs], ["FBNE_costate","FBNE_costate"], sol_table1, loss_table1, equi_table1)
+                                                                                                expert_traj_list[ii], false, false, [], true, 10, 0.1, 0.1)
+        θ_list1, index_list1, optim_loss_list1 = get_the_best_possible_reward_estimate_single(init_x0, ["FBNE_costate","FBNE_costate"], sol_table1, loss_table1, equi_table1)
         # state_prediction_error_list1 = loss(θ_list1[1], iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[ii], true, false, [], [], 
         #                                     1:game_horizon-1, 1:nx, 1:nu) # the first true represents whether ignore outputing expert trajectories 
         # generalization_error = generalization_loss(games[ii], θ_list[1], [x0+0.5*(rand(4)-0.5*ones(4)) for ii in 1:num_generalization], 
         #                             expert_traj_list, parameterized_cost, equilibrium_type_list) #problem
         
         # push!(state_prediction_error_list_list1[ii][jj], state_prediction_error_list1)
+        push!(init_x0_list1[ii][jj], init_x0)
+        push!(x0_table_list1[ii][jj], x0_table1)
         push!(conv_table_list1[ii][jj], conv_table1)
         push!(sol_table_list1[ii][jj], sol_table1)
         push!(loss_table_list1[ii][jj], loss_table1)
@@ -351,6 +374,15 @@ Threads.@threads for ii in 1:num_clean_traj
         # push!(generalization_error_list[ii][jj], generalization_error)
     end
 end
+
+jldsave("GD_LQ_x0_partial$(Dates.now())"; noise_level_list, nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list,noisy_expert_traj_list, conv_table_list1, sol_table_list1, loss_table_list1, grad_table_list1, 
+    equi_table_list1, iter_table_list1, comp_time_table_list1, θ_list_list1, index_list_list1, optim_loss_list_list1,
+    ground_truth_loss_list1, x0_table_list1, obs_time_list, obs_state_list, obs_control_list, init_x0_list1)
+
+
+
+
 
 using JLD2
 jldsave("GD_partial_GD$(Dates.now())"; noise_level_list, nx, nu, ΔT, game,dynamics, costs, player_inputs, solver, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 

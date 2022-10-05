@@ -85,103 +85,103 @@ obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[
 
 # ------------------------------------ Optimization problem begin ------------------------------------------- #
 
-function KKT_highway_forward_game_solve( x0,g)
-    θ=[8,0,4,4]
-    model = Model(Ipopt.Optimizer)
-    @variable(model, x[1:nx, 1:g.h])
-    @variable(model, u[1:nu, 1:g.h])
-    @variable(model, λ[1:2, 1:nx, 1:g.h])
-    @objective(model, Min, 0)
-    ΔT = 0.1
-    for t in 1:g.h # for each time t within the game horizon
-        if t != g.h # dJ1/dx
-            @constraint(model,   λ[1,1,t] + 2*θ[2]*x[1,t]             - λ[1,1,t+1] == 0)
-            @constraint(model,   λ[1,2,t]               - λ[1,2,t+1] == 0)
-            @NLconstraint(model, λ[1,3,t]               - λ[1,3,t+1] + λ[1,1,t+1]*ΔT*x[4,t]*sin(x[3,t]) - λ[1,2,t+1]*ΔT*x[4,t]*cos(x[3,t])  == 0)
-            @NLconstraint(model, λ[1,4,t]               - λ[1,4,t+1] - λ[1,1,t+1]*ΔT*cos(x[3,t]) - λ[1,2,t+1]*ΔT*sin(x[3,t]) == 0)
-            @constraint(model,   λ[1,5,t] + 2*θ[1]*(x[5,t]-x[9,t])           - λ[1,5,t+1] == 0)
-            @constraint(model,   λ[1,6,t]               - λ[1,6,t+1] == 0)
-            @NLconstraint(model, λ[1,7,t]               - λ[1,7,t+1] + λ[1,5,t+1]*ΔT*x[8,t]*sin(x[7,t]) - λ[1,6,t+1]*ΔT*x[8,t]*cos(x[7,t]) == 0)
-            @NLconstraint(model, λ[1,8,t]               - λ[1,8,t+1] - λ[1,5,t+1]*ΔT*cos(x[7,t]) - λ[1,6,t+1]*ΔT*sin(x[7,t]) == 0)
-            @NLconstraint(model, λ[1,9,t] + 2*θ[1]*(x[9,t]-x[5,t])              - λ[1,9,t+1] == 0)
-        else
-            @constraint(model,   λ[1,1,t] + 2*θ[2]*x[1,t] == 0)
-            @constraint(model,   λ[1,2,t] == 0)
-            @NLconstraint(model, λ[1,3,t] == 0)
-            @NLconstraint(model, λ[1,4,t] == 0)
-            @constraint(model,   λ[1,5,t] + 2*θ[1]*(x[5,t]-x[9,t]) == 0)
-            @constraint(model,   λ[1,6,t] == 0)
-            @NLconstraint(model, λ[1,7,t] == 0)
-            @NLconstraint(model, λ[1,8,t] == 0)
-            @NLconstraint(model, λ[1,9,t] + 2*θ[1]*(x[9,t]-x[5,t]) == 0)
-        end
+# function KKT_highway_forward_game_solve( x0,g)
+#     θ=[8,0,4,4]
+#     model = Model(Ipopt.Optimizer)
+#     @variable(model, x[1:nx, 1:g.h])
+#     @variable(model, u[1:nu, 1:g.h])
+#     @variable(model, λ[1:2, 1:nx, 1:g.h])
+#     @objective(model, Min, 0)
+#     ΔT = 0.1
+#     for t in 1:g.h # for each time t within the game horizon
+#         if t != g.h # dJ1/dx
+#             @constraint(model,   λ[1,1,t] + 2*θ[2]*x[1,t]             - λ[1,1,t+1] == 0)
+#             @constraint(model,   λ[1,2,t]               - λ[1,2,t+1] == 0)
+#             @NLconstraint(model, λ[1,3,t]               - λ[1,3,t+1] + λ[1,1,t+1]*ΔT*x[4,t]*sin(x[3,t]) - λ[1,2,t+1]*ΔT*x[4,t]*cos(x[3,t])  == 0)
+#             @NLconstraint(model, λ[1,4,t]               - λ[1,4,t+1] - λ[1,1,t+1]*ΔT*cos(x[3,t]) - λ[1,2,t+1]*ΔT*sin(x[3,t]) == 0)
+#             @constraint(model,   λ[1,5,t] + 2*θ[1]*(x[5,t]-x[9,t])           - λ[1,5,t+1] == 0)
+#             @constraint(model,   λ[1,6,t]               - λ[1,6,t+1] == 0)
+#             @NLconstraint(model, λ[1,7,t]               - λ[1,7,t+1] + λ[1,5,t+1]*ΔT*x[8,t]*sin(x[7,t]) - λ[1,6,t+1]*ΔT*x[8,t]*cos(x[7,t]) == 0)
+#             @NLconstraint(model, λ[1,8,t]               - λ[1,8,t+1] - λ[1,5,t+1]*ΔT*cos(x[7,t]) - λ[1,6,t+1]*ΔT*sin(x[7,t]) == 0)
+#             @NLconstraint(model, λ[1,9,t] + 2*θ[1]*(x[9,t]-x[5,t])              - λ[1,9,t+1] == 0)
+#         else
+#             @constraint(model,   λ[1,1,t] + 2*θ[2]*x[1,t] == 0)
+#             @constraint(model,   λ[1,2,t] == 0)
+#             @NLconstraint(model, λ[1,3,t] == 0)
+#             @NLconstraint(model, λ[1,4,t] == 0)
+#             @constraint(model,   λ[1,5,t] + 2*θ[1]*(x[5,t]-x[9,t]) == 0)
+#             @constraint(model,   λ[1,6,t] == 0)
+#             @NLconstraint(model, λ[1,7,t] == 0)
+#             @NLconstraint(model, λ[1,8,t] == 0)
+#             @NLconstraint(model, λ[1,9,t] + 2*θ[1]*(x[9,t]-x[5,t]) == 0)
+#         end
 
-        if t != g.h # dJ2/dx
-            @constraint(model,   λ[2,1,t] + 2*θ[3]*(x[1,t]-x[5,t])                   - λ[2,1,t+1] == 0)
-            @constraint(model,   λ[2,2,t]                   - λ[2,2,t+1] == 0)
-            @NLconstraint(model, λ[2,3,t]                   - λ[2,3,t+1] + λ[2,1,t+1]*ΔT*x[4,t]*sin(x[3,t]) - λ[2,2,t+1]*ΔT*x[4,t]*cos(x[3,t])  == 0)
-            @NLconstraint(model, λ[2,4,t]                   - λ[2,4,t+1] - λ[2,1,t+1]*ΔT*cos(x[3,t]) - λ[2,2,t+1]*ΔT*sin(x[3,t]) == 0)
-            @constraint(model,   λ[2,5,t] + 2*θ[3]*(x[5,t]-x[1,t])                    - λ[2,5,t+1] == 0)
-            @constraint(model,   λ[2,6,t]                   - λ[2,6,t+1] == 0)
-            @NLconstraint(model, λ[2,7,t]                   - λ[2,7,t+1] + λ[2,5,t+1]*ΔT*x[8,t]*sin(x[7,t]) - λ[2,6,t+1]*ΔT*x[8,t]*cos(x[7,t]) == 0)
-            @NLconstraint(model, λ[2,8,t] + 2*θ[4]*(x[8,t]-1)                  - λ[2,8,t+1] - λ[2,5,t+1]*ΔT*cos(x[7,t]) - λ[2,6,t+1]*ΔT*sin(x[7,t]) == 0)
-            @NLconstraint(model, λ[2,9,t]                   -λ[2,9,t+1] == 0)
-        else
-            @constraint(model,   λ[2,1,t] + 2*θ[3]*(x[1,t]-x[5,t]) == 0)
-            @constraint(model,   λ[2,2,t]  == 0)
-            @NLconstraint(model, λ[2,3,t]  == 0)
-            @NLconstraint(model, λ[2,4,t]  == 0)
-            @constraint(model,   λ[2,5,t] + 2*θ[3]*(x[5,t]-x[1,t]) == 0)
-            @constraint(model,   λ[2,6,t]  == 0)
-            @NLconstraint(model, λ[2,7,t]  == 0)
-            @NLconstraint(model, λ[2,8,t] + 2*θ[4]*(x[8,t]-1) == 0)
-            @NLconstraint(model, λ[2,9,t] == 0)
-        end
+#         if t != g.h # dJ2/dx
+#             @constraint(model,   λ[2,1,t] + 2*θ[3]*(x[1,t]-x[5,t])                   - λ[2,1,t+1] == 0)
+#             @constraint(model,   λ[2,2,t]                   - λ[2,2,t+1] == 0)
+#             @NLconstraint(model, λ[2,3,t]                   - λ[2,3,t+1] + λ[2,1,t+1]*ΔT*x[4,t]*sin(x[3,t]) - λ[2,2,t+1]*ΔT*x[4,t]*cos(x[3,t])  == 0)
+#             @NLconstraint(model, λ[2,4,t]                   - λ[2,4,t+1] - λ[2,1,t+1]*ΔT*cos(x[3,t]) - λ[2,2,t+1]*ΔT*sin(x[3,t]) == 0)
+#             @constraint(model,   λ[2,5,t] + 2*θ[3]*(x[5,t]-x[1,t])                    - λ[2,5,t+1] == 0)
+#             @constraint(model,   λ[2,6,t]                   - λ[2,6,t+1] == 0)
+#             @NLconstraint(model, λ[2,7,t]                   - λ[2,7,t+1] + λ[2,5,t+1]*ΔT*x[8,t]*sin(x[7,t]) - λ[2,6,t+1]*ΔT*x[8,t]*cos(x[7,t]) == 0)
+#             @NLconstraint(model, λ[2,8,t] + 2*θ[4]*(x[8,t]-1)                  - λ[2,8,t+1] - λ[2,5,t+1]*ΔT*cos(x[7,t]) - λ[2,6,t+1]*ΔT*sin(x[7,t]) == 0)
+#             @NLconstraint(model, λ[2,9,t]                   -λ[2,9,t+1] == 0)
+#         else
+#             @constraint(model,   λ[2,1,t] + 2*θ[3]*(x[1,t]-x[5,t]) == 0)
+#             @constraint(model,   λ[2,2,t]  == 0)
+#             @NLconstraint(model, λ[2,3,t]  == 0)
+#             @NLconstraint(model, λ[2,4,t]  == 0)
+#             @constraint(model,   λ[2,5,t] + 2*θ[3]*(x[5,t]-x[1,t]) == 0)
+#             @constraint(model,   λ[2,6,t]  == 0)
+#             @NLconstraint(model, λ[2,7,t]  == 0)
+#             @NLconstraint(model, λ[2,8,t] + 2*θ[4]*(x[8,t]-1) == 0)
+#             @NLconstraint(model, λ[2,9,t] == 0)
+#         end
 
-        # dJ1/du and dJ2/du
-        @constraint(model, 4*u[1,t] - λ[1,3,t]*ΔT == 0)
-        @constraint(model, 4*u[2,t] - λ[1,4,t]*ΔT == 0)
-        @constraint(model, 4*u[3,t] - λ[2,7,t]*ΔT == 0)
-        @constraint(model, 4*u[4,t] - λ[2,8,t]*ΔT == 0)
-        if t == 1
-            @NLconstraint(model, x[1,1] == x0[1] + ΔT * x0[4]*cos(x0[3]))
-            @NLconstraint(model, x[2,1] == x0[2] + ΔT * x0[4]*sin(x0[3]))
-            @NLconstraint(model, x[3,1] == x0[3] + ΔT * u[1,t])
-            @NLconstraint(model, x[4,1] == x0[4] + ΔT * u[2,t])
-            @NLconstraint(model, x[5,1] == x0[5] + ΔT * x0[8]*cos(x0[7]))
-            @NLconstraint(model, x[6,1] == x0[6] + ΔT * x0[8]*sin(x0[7]))
-            @NLconstraint(model, x[7,1] == x0[7] + ΔT * u[3,t])
-            @NLconstraint(model, x[8,1] == x0[8] + ΔT * u[4,t])
-            @NLconstraint(model, x[9,1] == x0[9])
-        else
-            @NLconstraint(model, x[1,t] == x[1,t-1] + ΔT * x[4,t-1]*cos(x[3,t-1]))
-            @NLconstraint(model, x[2,t] == x[2,t-1] + ΔT * x[4,t-1]*sin(x[3,t-1]))
-            @NLconstraint(model, x[3,t] == x[3,t-1] + ΔT * u[1,t])
-            @NLconstraint(model, x[4,t] == x[4,t-1] + ΔT * u[2,t])
-            @NLconstraint(model, x[5,t] == x[5,t-1] + ΔT * x[8,t-1]*cos(x[7,t-1]))
-            @NLconstraint(model, x[6,t] == x[6,t-1] + ΔT * x[8,t-1]*sin(x[7,t-1]))
-            @NLconstraint(model, x[7,t] == x[7,t-1] + ΔT * u[3,t])
-            @NLconstraint(model, x[8,t] == x[8,t-1] + ΔT * u[4,t])
-            @NLconstraint(model, x[9,t] == x[9,t-1])
-        end
-    end
-    # @constraint(model, θ .>= -0.1*ones(3))
-    optimize!(model)
-    return value.(x), value.(u), value.(θ), model
-end
+#         # dJ1/du and dJ2/du
+#         @constraint(model, 4*u[1,t] - λ[1,3,t]*ΔT == 0)
+#         @constraint(model, 4*u[2,t] - λ[1,4,t]*ΔT == 0)
+#         @constraint(model, 4*u[3,t] - λ[2,7,t]*ΔT == 0)
+#         @constraint(model, 4*u[4,t] - λ[2,8,t]*ΔT == 0)
+#         if t == 1
+#             @NLconstraint(model, x[1,1] == x0[1] + ΔT * x0[4]*cos(x0[3]))
+#             @NLconstraint(model, x[2,1] == x0[2] + ΔT * x0[4]*sin(x0[3]))
+#             @NLconstraint(model, x[3,1] == x0[3] + ΔT * u[1,t])
+#             @NLconstraint(model, x[4,1] == x0[4] + ΔT * u[2,t])
+#             @NLconstraint(model, x[5,1] == x0[5] + ΔT * x0[8]*cos(x0[7]))
+#             @NLconstraint(model, x[6,1] == x0[6] + ΔT * x0[8]*sin(x0[7]))
+#             @NLconstraint(model, x[7,1] == x0[7] + ΔT * u[3,t])
+#             @NLconstraint(model, x[8,1] == x0[8] + ΔT * u[4,t])
+#             @NLconstraint(model, x[9,1] == x0[9])
+#         else
+#             @NLconstraint(model, x[1,t] == x[1,t-1] + ΔT * x[4,t-1]*cos(x[3,t-1]))
+#             @NLconstraint(model, x[2,t] == x[2,t-1] + ΔT * x[4,t-1]*sin(x[3,t-1]))
+#             @NLconstraint(model, x[3,t] == x[3,t-1] + ΔT * u[1,t])
+#             @NLconstraint(model, x[4,t] == x[4,t-1] + ΔT * u[2,t])
+#             @NLconstraint(model, x[5,t] == x[5,t-1] + ΔT * x[8,t-1]*cos(x[7,t-1]))
+#             @NLconstraint(model, x[6,t] == x[6,t-1] + ΔT * x[8,t-1]*sin(x[7,t-1]))
+#             @NLconstraint(model, x[7,t] == x[7,t-1] + ΔT * u[3,t])
+#             @NLconstraint(model, x[8,t] == x[8,t-1] + ΔT * u[4,t])
+#             @NLconstraint(model, x[9,t] == x[9,t-1])
+#         end
+#     end
+#     # @constraint(model, θ .>= -0.1*ones(3))
+#     optimize!(model)
+#     return value.(x), value.(u), value.(θ), model
+# end
 
-for_sol=KKT_highway_forward_game_solve(x0, g)
+# for_sol=KKT_highway_forward_game_solve(x0, g)
 
 
-include("../examples/def_2_level_inv_KKT.jl")
-function two_level_inv_KKT(obs_x, θ₀, x0, obs_time_list, obs_state_list)
+include("../examples/def_2_level_inv_KKT_x0.jl")
+function two_level_inv_KKT(obs_x, θ₀, obs_time_list, obs_state_list)
     # first level, solve a feasible dynamics point
-    feasible_sol = level_1_KKT(obs_x, x0, obs_time_list, obs_state_list);
+    feasible_sol = level_1_KKT_x0(obs_x, obs_time_list, obs_state_list);
     # second level, solver a good θ
-    overall_sol = level_2_KKT(feasible_sol[1],feasible_sol[2], obs_x, θ₀, x0, obs_time_list, obs_state_list)
+    overall_sol = level_2_KKT_x0(feasible_sol[1],feasible_sol[2], obs_x, θ₀, obs_time_list, obs_state_list)
     return overall_sol
 end
-inv_sol=two_level_inv_KKT(obs_x_OL[:,2:end], 4*ones(4), x0, 1:game_horizon-1, 1:nx)
+inv_sol=two_level_inv_KKT(obs_x_OL, 4*ones(4), 1:game_horizon-1, 1:nx)
 
 # anim1 = @animate for i in 1:game_horizon
 #     plot( [for_sol[1][1,i], for_sol[1][1,i]], [for_sol[1][2,i], for_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
@@ -379,7 +379,7 @@ inv_ground_truth_loss_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_
 inv_ground_truth_computed_traj_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 
 num_test = 10
-test_x0_set = [x0 + [0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
+test_x0_set = [x0 + 0.5*[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
 test_expert_traj_list, c_test_expert = generate_expert_traj(game, solver, test_x0_set, num_test);
 
 
@@ -399,7 +399,7 @@ Threads.@threads for noise in 1:length(noise_level_list)
         tmp_obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_x[t]) for t in 1:game.h])))
         # tmp_obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_u[t]) for t in 1:game.h])))
         # tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = KKT_highway_inverse_game_solve(tmp_obs_x[:,2:end], tmp_obs_u, θ₀, x0_set[index], obs_time_list, obs_state_list, obs_control_list)
-        tmp_sol = two_level_inv_KKT(tmp_obs_x[:,2:end], θ₀, x0_set[index], obs_time_list, obs_state_list)
+        tmp_sol = two_level_inv_KKT(tmp_obs_x, θ₀, obs_time_list, obs_state_list)
         tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = tmp_sol[1], tmp_sol[2], tmp_sol[3], tmp_sol[4];
         tmp_inv_loss = objective_value(tmp_inv_model)
         println("The $(ii)-th observation of $(noise)-th noise level")
@@ -414,6 +414,7 @@ Threads.@threads for noise in 1:length(noise_level_list)
         end
         # @infiltrate
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
+        # println("$(inv_mean_generalization_loss_list[noise][ii])")
         push!(inv_var_generalization_loss_list[noise][ii], var(tmp_test_loss_value))
         push!(inv_sol_list[noise][ii], tmp_inv_sol)
         push!(inv_loss_list[noise][ii], objective_value(tmp_inv_model))
@@ -455,9 +456,13 @@ jldsave("KKT_inverse_compact_20_no_control_partial$(Dates.now())"; inv_traj_x_li
 ## Plot state_prediction_loss vs. noise_variance level
 
 
-plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
-plot!(noise_level_list, [mean(inv_loss_list[ii][jj] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label = "loss")
-plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="ground truth")
+var1=[var(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var2=[var(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var3=[var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+
+plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
+plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label = "loss")
+plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="ground truth")
 
 
 
