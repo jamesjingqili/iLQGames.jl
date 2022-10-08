@@ -40,7 +40,7 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.1)
+x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1, 0.0)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
@@ -331,18 +331,18 @@ inv_sol=two_level_inv_KKT(obs_x_OL, 4*ones(4), 1:game_horizon-1, 1:nx)
 
 num_clean_traj = 1
 x0_set = [x0 for ii in 1:num_clean_traj]
-expert_traj_list, c_expert = generate_expert_traj(g, solver1, x0_set, num_clean_traj)
+expert_traj_list, c_expert = generate_expert_traj(g, solver2, x0_set, num_clean_traj)
 if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
     @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
 end
 
 game = g
-solver = solver1
+solver = solver2
 
 # The below: generate random expert trajectories
 num_obs = 10
 # noise_level_list = 0.005:0.005:0.05
-noise_level_list = 0.004:0.002:0.04
+noise_level_list = 0.004:0.004:0.04
 num_noise_level = length(noise_level_list)
 num_noise_level = length(noise_level_list)
 noisy_expert_traj_list = [[[zero(SystemTrajectory, game) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
@@ -379,7 +379,8 @@ inv_ground_truth_loss_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_
 inv_ground_truth_computed_traj_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 
 num_test = 10
-test_x0_set = [x0 + 0.5*[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
+test_noise_level=1.0
+test_x0_set = [x0 - [0,0,0,0,0,0,0,0,x0[end]] + test_noise_level*[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
 test_expert_traj_list, c_test_expert = generate_expert_traj(game, solver, test_x0_set, num_test);
 
 
@@ -404,13 +405,13 @@ Threads.@threads for noise in 1:length(noise_level_list)
         tmp_inv_loss = objective_value(tmp_inv_model)
         println("The $(ii)-th observation of $(noise)-th noise level")
         # solution_summary(tmp_inv_model)
-        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], obs_time_list, obs_state_list, obs_control_list, false) 
+        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false) 
         # @infiltrate
         # tmp_test_sol = [[] for jj in 1:num_test]
         tmp_test_loss_value = zeros(num_test)
         for jj in 1:num_test
             # @infiltrate
-            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],obs_time_list, obs_state_list, obs_control_list,false)
+            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:nx, 1:nu,false)
         end
         # @infiltrate
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
@@ -425,6 +426,29 @@ Threads.@threads for noise in 1:length(noise_level_list)
         push!(inv_model_list[noise][ii], tmp_inv_model)
     end
 end
+
+jldsave("KKT_inverse_x0_full$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_model_list, inv_ground_truth_loss_list,
+    inv_ground_truth_computed_traj_list, obs_time_list, obs_state_list, obs_control_list, num_test, test_x0_set, 
+    test_expert_traj_list, c_test_expert, noise_level_list, expert_traj_list, dynamics, nx, nu, game_horizon, g, solver1, costs,)
+
+
+jldsave("KKT_x0_full_20_ill$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+    inv_loss_list,  inv_ground_truth_loss_list,
+    obs_time_list, obs_state_list)
+
+jldsave("1008_baobei_KKT_x0_full_20_ill$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+    inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+    obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+    obs_x_OL, obs_x_FB)
+
+
+jldsave("1008_baobei_KKT_x0_partial_20_ill$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+    inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+    obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+    obs_x_OL, obs_x_FB)
+
+
+
 
 
 jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_model_list, inv_ground_truth_loss_list,
@@ -454,7 +478,9 @@ jldsave("KKT_inverse_compact_20_no_control_partial$(Dates.now())"; inv_traj_x_li
 
 
 ## Plot state_prediction_loss vs. noise_variance level
-
+inv_mean_generalization_loss_list=t1["inv_mean_generalization_loss_list"]
+inv_loss_list = t1["inv_loss_list"]
+inv_ground_truth_loss_list = t1["inv_ground_truth_loss_list"]
 
 var1=[var(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
 var2=[var(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
@@ -463,6 +489,75 @@ var3=[var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii i
 plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
 plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label = "loss")
 plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="ground truth")
+
+
+
+t1=load("KKT_dubins_0.5_gen_x0_compact")
+noise_level_list = 0.004:0.002:0.04
+num_obs=10
+num_noise_level = length(noise_level_list)
+inv_mean_generalization_loss_list = t1["inv_mean_generalization_loss_list"]
+inv_loss_list = t1["inv_loss_list"]
+inv_ground_truth_loss_list = t1["inv_ground_truth_loss_list"]
+
+var1 = [var(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var2 = [var(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var3 = [var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+
+plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
+plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var2,var2), label = "loss")
+plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var3,var3), label="ground truth")
+
+
+t1=load("KKT_partial_0.3")
+noise_level_list = 0.004:0.004:0.04
+num_obs=10
+num_noise_level = length(noise_level_list)
+inv_mean_generalization_loss_list = t1["inv_mean_generalization_loss_list"]
+inv_loss_list = t1["inv_loss_list"]
+inv_ground_truth_loss_list = t1["inv_ground_truth_loss_list"]
+
+var1 = [var(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var2 = [var(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var3 = [var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+
+plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level],ribbons=(var1,var1), label="generalization error", xlabel="noise level")
+plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var2,var2), label = "loss")
+plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var3,var3), label="ground truth error")
+
+
+# below is to plot the predicted trajectory from KKT baseline
+noise=1
+ii=1
+tt=loss(t1["inv_sol_list"][noise][ii][1], dynamics, "FBNE_costate", expert_traj2, false )
+plt = plot([tt[2].x[t][1] for t in 1:39], [tt[2].x[t][2] for t in 1:39], color="blue")
+plt = plot!([tt[2].x[t][5] for t in 1:39], [tt[2].x[t][6] for t in 1:39], color="red")
+plt = plot!([obs_x_FB[1,t] for t in 1:39], [obs_x_FB[2,t] for t in 1:39], color="blue", linestyle=:dash, label="ground truth")
+plt = plot!([obs_x_FB[5,t] for t in 1:39], [obs_x_FB[6,t] for t in 1:39], color = "red", linestyle=:dash, label="ground truth")
+
+
+ttt = t1["inv_traj_x_list"][1][1][1]
+plt = plot([ttt[1,t] for t in 1:39], [ttt[2,t] for t in 1:39], color="blue",linestyle=:dash, linewidth=3,label="OLNE under the cost learned by KKT",title="trajectories comparison")
+plt = plot!([ttt[5,t] for t in 1:39], [ttt[6,t] for t in 1:39], color="red",linestyle=:dash,linewidth=3, label="OLNE under the cost learned by KKT")
+plt = plot!([tt[2].x[t][1] for t in 1:39], [tt[2].x[t][2] for t in 1:39], color="blue", linestyle=:dot,linewidth=3, label="FBNE under the cost learned by KKT")
+plt = plot!([tt[2].x[t][5] for t in 1:39], [tt[2].x[t][6] for t in 1:39], color="red",linestyle=:dot,linewidth=3, label = "FBNE under the cost learned by kKT")
+plt = plot!([obs_x_FB[1,t] for t in 1:39], [obs_x_FB[2,t] for t in 1:39], color="blue", linewidth=3, label="ground truth FBNE data")
+plt = plot!([obs_x_FB[5,t] for t in 1:39], [obs_x_FB[6,t] for t in 1:39], color = "red", linewidth=3, label="ground truth FBNE data")
+savefig("traj_compare_OLNE.pdf")
+
+
+
+# Oct. 5th
+t1=load("KKT_partial_2cars_x0_baobei")
+
+
+
+
+
+
+
+
+
 
 
 
