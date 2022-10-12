@@ -761,8 +761,8 @@ savefig("ground_truth_noise_predicted.pdf")
 # ---------------------------------------------------------------------- Oct. 7th
 # t1 = load("GD_x0_dubins_mean1_partial_low_noise_0.03")
 # t2 = load("GD_x0_no_control_2car_full_x0_noise_0.032022-10-04T21:24:03.180")
-t1 = load("GD_x0_dubins_mean1_partial_low_noise_0.03")
-t2 = load("GD_x0_no_control_2car_full_x0_noise_0.032022-10-04T21:24:03.180")
+t1 = load("GD_partial_2cars_x0_baobei")
+t2 = load("baobei_GD_2car_full_x02022-10-06T11_06_02.696")
 t3 = load("KKT_partial_2cars_x0_baobei")
 t4 = load("baobei_KKT_x0_full_20_ill2022-10-07T14:12:04.998")
 obs_time_list = [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40];
@@ -770,7 +770,7 @@ obs_state_list = [1,2,3,5,6,7];
 game_horizon=40
 # below plot partial observation and incomplete trajectory
 plot_size = (900,600)
-noise = 2 # full
+noise = 5 # full
 tt = loss(t2["θ_list_list"][1][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1], false)
 ttt= loss(t4["inv_sol_list"][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1],false)
 subplt1 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], linewidth=3, title="Complete trajectory, σ = $(t1["noise_level_list"][noise])", color="red", label="", size = plot_size, xlabel="x", ylabel="y")
@@ -783,7 +783,7 @@ subplt1 = plot!([ttt[2].x[t][1] for t in 1:game_horizon], [ttt[2].x[t][2] for t 
 subplt1 = plot!([ttt[2].x[t][5] for t in 1:game_horizon], [ttt[2].x[t][6] for t in 1:game_horizon], linestyle=:dot, linewidth=3, color="green",label="")
 display(subplt1)
 
-noise = 2 # partial
+noise = 5 # partial
 tt = loss(t1["θ_list_list"][1][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1], false)
 ttt= loss(t3["inv_sol_list"][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1],false)
 subplt2 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:10], [t1["expert_traj_list"][1].x[t][2] for t in 1:10], linewidth=3, color="red", title="Incomplete trajectory, σ = $(t1["noise_level_list"][noise])", label="", size = plot_size, xlabel="x", ylabel="y")
@@ -798,7 +798,7 @@ subplt2 = plot!([ttt[2].x[t][1] for t in 1:game_horizon], [ttt[2].x[t][2] for t 
 subplt2 = plot!([ttt[2].x[t][5] for t in 1:game_horizon], [ttt[2].x[t][6] for t in 1:game_horizon], linestyle=:dot, linewidth=3, color="green",label="")
 display(subplt2)
 
-noise = 3 # full
+noise = 10 # full
 tt = loss(t2["θ_list_list"][1][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1], false)
 ttt= loss(t4["inv_sol_list"][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1],false)
 subplt3 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], linewidth=3, title="Complete trajectory, σ = $(t1["noise_level_list"][noise])", color="red", label="player 1, ground truth", size = plot_size, xlabel="x", ylabel="y")
@@ -811,7 +811,7 @@ subplt3 = plot!([ttt[2].x[t][1] for t in 1:game_horizon], [ttt[2].x[t][2] for t 
 subplt3 = plot!([ttt[2].x[t][5] for t in 1:game_horizon], [ttt[2].x[t][6] for t in 1:game_horizon], linestyle=:dot, linewidth=3, color="green",label="player 2, predicted by baseline")
 display(subplt3)
 
-noise = 3 # partial
+noise = 10 # partial
 tt = loss(t1["θ_list_list"][1][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1], false)
 ttt= loss(t3["inv_sol_list"][noise][1][1], dynamics, "FBNE_costate", t1["expert_traj_list"][1],false)
 subplt4 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:10], [t1["expert_traj_list"][1].x[t][2] for t in 1:10], linewidth=3, color="red", title="Incomplete trajectory, σ = $(t1["noise_level_list"][noise])", label="", size = plot_size, xlabel="x", ylabel="y")
@@ -830,7 +830,7 @@ fullplt = plot(subplt1, subplt3, subplt2, subplt4, layout=(2,2))
 display(fullplt)
 
 
-savefig("ground_truth_noise_predicted.pdf")
+savefig("baseline_ground_truth_noise_predicted.pdf")
 
 
 

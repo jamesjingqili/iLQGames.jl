@@ -7,8 +7,8 @@ using Plots
 using ForwardDiff
 using iLQGames:
     SystemTrajectory
-using iLQGames:
-    LinearSystem
+# using iLQGames:
+#     LinearSystem
 using Infiltrator
 using Optim
 using LinearAlgebra
@@ -19,100 +19,72 @@ include("../src/diff_solver.jl")
 include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
-num_players=5
-nx, nu, ΔT, game_horizon = 4*num_players, 2*num_players, 0.1, 40
-struct FiveUnicycle <: ControlSystem{ΔT,nx,nu} end
-dx(cs::FiveUnicycle, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
-                                    x[8]cos(x[7]),   x[8]sin(x[7]),   u[3], u[4],
-                                    x[12]cos(x[11]), x[12]sin(x[11]), u[5], u[6],
-                                    x[16]cos(x[15]), x[16]sin(x[15]), u[7], u[8],
-                                    x[20]cos(x[19]), x[20]sin(x[19]), u[9], u[10])
-dynamics = FiveUnicycle()
-
-# struct FourUnicycle <: ControlSystem{ΔT,nx,nu} end
-# dx(cs::FourUnicycle, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2], 
-#                                         x[8]cos(x[7]),   x[8]sin(x[7]),   u[3], u[4],
-#                                         x[12]cos(x[11]), x[12]sin(x[11]), u[5], u[6],
-#                                         x[16]cos(x[15]), x[16]sin(x[15]), u[7], u[8])
-# dynamics = FourUnicycle()
-
-col_coeff=0.01
-xlist = [(ii-1)*4+1:ii*4 for ii in 1:num_players]
-# costs = (FunctionPlayerCost((g, x, u, t) -> (  2*(x[1])^2  + 2*(x[4]-1.1)^2 +    2*(u[1]^2 + u[2]^2) )    -col_coeff*log((x[1]-x[4+1])^2+(x[2]-x[4+2])^2) -col_coeff*log((x[1]-x[2*4+1])^2+(x[2]-x[2*4+2])^2) -col_coeff*log((x[1]-x[4*4+1])^2+(x[2]-x[4*4+2])^2) ),
-#          FunctionPlayerCost((g, x, u, t) -> (  2*(x[1*4+1])^2  + 2*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) )    -col_coeff*log((x[4+1]-x[4*4+1])^2+(x[4+2]-x[4*4+2])^2)),
-#          FunctionPlayerCost((g, x, u, t) -> (  2*(x[2*4+1]-1)^2  + 2*(x[12]-1)^2 + 2*(u[5]^2 + u[6]^2) ) -col_coeff*log((x[2*4+1]-x[3*4+1])^2+(x[2*4+2]-x[3*4+2])^2)),
-#          FunctionPlayerCost((g, x, u, t) -> (  2*(x[3*4]-1)^2  + 2*(x[16]-1)^2 + 2*(u[7]^2 + u[8]^2) )-col_coeff*log((x[3*4+1]-x[2*4+1])^2+(x[3*4+2]-x[2*4+2])^2)) 
-#          )
-
-# costs = (FunctionPlayerCost((g, x, u, t) -> (  2*(x[1]-1)^2  + 2*(x[4]-1.1)^2 +    2*(u[1]^2 + u[2]^2) )     ),
-#          FunctionPlayerCost((g, x, u, t) -> (  2*(x[1*4+1])^2  + 2*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) )    ),
-#          FunctionPlayerCost((g, x, u, t) -> (  2*(x[2*4+1]-1)^2  + 2*(x[12]-1)^2 + 2*(u[5]^2 + u[6]^2) ) ),
-#          FunctionPlayerCost((g, x, u, t) -> (  2*(x[3*4])^2  + 2*(x[16]-1)^2 + 2*(u[7]^2 + u[8]^2) )) 
-#          )
-
-costs = (FunctionPlayerCost((g, x, u, t) -> (  2*(x[1])^2  + 2*(x[4]-1.5)^2 +    2*(u[1]^2 + u[2]^2) )    -col_coeff*log((x[1]-x[4+1])^2+(x[2]-x[4+2])^2) -col_coeff*log((x[1]-x[2*4+1])^2+(x[2]-x[2*4+2])^2) -col_coeff*log((x[1]-x[4*4+1])^2+(x[2]-x[4*4+2])^2) ),
-         FunctionPlayerCost((g, x, u, t) -> (  2*(x[1*4+1])^2  + 2*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) )    -col_coeff*log((x[4+1]-x[4*4+1])^2+(x[4+2]-x[4*4+2])^2)),
-         FunctionPlayerCost((g, x, u, t) -> (  2*(x[2*4+1]-1)^2  + 2*(x[12]-1)^2 + 2*(u[5]^2 + u[6]^2) ) -col_coeff*log((x[2*4+1]-x[3*4+1])^2+(x[2*4+2]-x[3*4+2])^2)),
-         FunctionPlayerCost((g, x, u, t) -> (  2*(x[3*4+1]-1)^2  + 2*(x[16]-1)^2 + 2*(u[7]^2 + u[8]^2) ) -col_coeff*log((x[3*4+1]-x[4*4+1])^2+(x[3*4+2]-x[4*4+2])^2)),
-         FunctionPlayerCost((g, x, u, t) -> (  2*(x[4*4+1]-1)^2  + 2*(x[20]-1)^2 + 2*(u[9]^2 + u[10]^2) )-col_coeff*log((x[4*4+1]-x[3*4+1])^2+(x[4*4+2]-x[3*4+2])^2)) 
+nx, nu, ΔT, game_horizon = 1, 2, 0.1, 3
+struct NLSystem <: ControlSystem{ΔT,nx,nu} end
+dx(cs::NLSystem, x, u, t) = SVector(x[1]^2 + u[1] + u[2])
+dynamics = NLSystem()
+costs = (FunctionPlayerCost((g, x, u, t) -> (  20*(x[1])^2  + 2*u[1]^2  )),
+         FunctionPlayerCost((g, x, u, t) -> (  4*(x[1])^2 + u[2]^2  )),
          )
-player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6),SVector(7,8),SVector(9,10))
 
-# player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6),SVector(7,8))
+player_inputs = (SVector(1), SVector(2))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(1, 0, pi/2, 1.5,       0, 0, pi/2, 1,      1,2,pi/2,1,      1,3,pi/2,1,          0,3.5, pi/2,1 )
-
-# x0 = SVector(1, 0, pi/2, 1.2,       0, 0, pi/2, 1,      1,2,pi/2,1,      0,3,pi/2,1)
-
-c1, expert_traj1, strategies1 = solve(g, solver1, x0)
+x0 = SVector(1)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
-
+solver1 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
+c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> (  θ[1]*(x[5]-x[9])^2  +  θ[2]*x[1]^2 +  2*(u[1]^2 + u[2]^2) )),
-             FunctionPlayerCost((g, x, u, t) -> (  θ[3]*(x[5]-x[1])^2  +  θ[4]*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ))   )
+    costs = (FunctionPlayerCost((g, x, u, t) -> (  θ[1]*(x[1])^2  + 2*u[1]^2  )),
+         FunctionPlayerCost((g, x, u, t) -> (  θ[2]*(x[1])^2 + u[2]^2  )),
+         )
     return costs
 end
+θ_true=[4,4]
 
-# θ_true = [10, 1, 1, 4, 1]
-θ_true = [8, 0, 4, 4]
+tmp1=loss([20,4], dynamics, "FBNE_costate", expert_traj2, false)
+tmp2=loss([5,5], dynamics, "FBNE_costate", expert_traj2, false)
+ForwardDiff.gradient(x -> loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, []), [4,4])
 
 # ForwardDiff.gradient(x -> loss([8,0,4,4], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x), [0.02,0.5, pi/2, 1, 1,0,pi/2,1,0.1])
-# ForwardDiff.gradient(x -> loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, []), [9,0,4,4])
 
+# ForwardDiff.gradient(x -> loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, []), [5,1,2,0.001])
 
 x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
 x2_FB, y2_FB = [expert_traj2.x[i][4+1] for i in 1:game_horizon], [expert_traj2.x[i][4+2] for i in 1:game_horizon];
 x3_FB, y3_FB = [expert_traj2.x[i][2*4+1] for i in 1:game_horizon], [expert_traj2.x[i][2*4+2] for i in 1:game_horizon];
-x4_FB, y4_FB = [expert_traj2.x[i][3*4+1] for i in 1:game_horizon], [expert_traj2.x[i][3*4+2] for i in 1:game_horizon];
-x5_FB, y5_FB = [expert_traj2.x[i][4*4+1] for i in 1:game_horizon], [expert_traj2.x[i][4*4+2] for i in 1:game_horizon];
+# x4_FB, y4_FB = [expert_traj2.x[i][3*4+1] for i in 1:game_horizon], [expert_traj2.x[i][3*4+2] for i in 1:game_horizon];
 
 anim2 = @animate for i in 1:game_horizon
-    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB",)
-    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB")
-    plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB")
-    plot!([x4_FB[i], x4_FB[i]], [y4_FB[i], y4_FB[i]], markershape = :square, label = "player 4, FB")
-    plot!([x5_FB[i], x5_FB[i]], [y5_FB[i], y5_FB[i]], markershape = :square, label = "player 5, FB", xlims = (-1.5, 2.5), ylims = (0, 8))
-        
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB",xlims=(-1.5,2.5), ylims=(0,12))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", )
+    plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", )
+    # plot!([x4_FB[i], x4_FB[i]], [y4_FB[i], y4_FB[i]], markershape = :square, label = "player 4, FB", xlims=(-1.5,2.5), ylims=(0,12))
+    plot!([0.5], seriestype = "vline", color = "red", linestyle=:dot, label = "")
     plot!([0], seriestype = "vline", color = "black", label = "")
     plot!([1], seriestype = "vline", color = "black", label = "")
 end
-gif(anim2, "cars5_FB.gif", fps = 10)
+gif(anim2, "cars3_FB.gif", fps = 10)
+
 x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+x2_OL, y2_OL = [expert_traj1.x[i][4+1] for i in 1:game_horizon], [expert_traj1.x[i][4+2] for i in 1:game_horizon];
+x3_OL, y3_OL = [expert_traj1.x[i][2*4+1] for i in 1:game_horizon], [expert_traj1.x[i][2*4+2] for i in 1:game_horizon];
+# x4_OL, y4_OL = [expert_traj1.x[i][3*4+1] for i in 1:game_horizon], [expert_traj1.x[i][3*4+2] for i in 1:game_horizon];
+
 anim1 = @animate for i in 1:game_horizon
-    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL",xlims=(-1.5,2.5), ylims=(0,12))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", )
+    plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", )
+    # plot!([x4_OL[i], x4_OL[i]], [y4_OL[i], y4_OL[i]], markershape = :square, label = "player 4, OL", xlims=(-1.5,2.5), ylims=(0,12))
+    plot!([0.5], seriestype = "vline", color = "red", linestyle=:dot, label = "")
     plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "") 
+    plot!([1], seriestype = "vline", color = "black", label = "")
 end
-gif(anim1, "cars5_OL.gif", fps = 10)
+gif(anim1, "cars3_OL.gif", fps = 10)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"
