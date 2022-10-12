@@ -25,14 +25,14 @@ struct ThreeCar <: ControlSystem{ΔT,nx,nu} end
 dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2], 
                                         x[8]cos(x[7]),   x[8]sin(x[7]),   u[3], u[4],
                                         x[12]cos(x[11]), x[12]sin(x[11]), u[5], u[6],
-                                        x[13]
+                                        0
                                         )
 dynamics = ThreeCar()
 
 # platonning
-x0 = SVector(0.2, 3, pi/2, 2,       0.2, 0, pi/2, 1.5,      0.5, 2,pi/2,1, 1.0)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( 0*(x[1])^2  + 10*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +4*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[1])^2  +0*(x[5])^2   +  4*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
+x0 = SVector(0.3, 3, pi/2, 2,       0.3, 0, pi/2, 1.5,      0.5, 2,pi/2,1, 1.0)
+costs = (FunctionPlayerCost((g,x,u,t) -> ( 0*(x[1])^2  + 10*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[1])^2  +0*(x[5])^2   +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
     )
 
@@ -43,6 +43,7 @@ solver1 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibr
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
+
 # function parameterized_cost(θ::Vector)
 # costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*(x[1]-0.6)^2  +2*(x[3]-pi/2)^2  +θ[2]*(x[4]-2)^2   -θ[3]*log((x[1]-x[5])^2+(x[2]-x[6])^2)   -log((x[1]-x[9])^2+(x[2]-x[10])^2)    +2*(u[1]^2 + u[2]^2)    )),
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[5]-x0[5])^2  +2*(x[7]+pi/2)^2  +2*(x[8]-x0[8])^2    -θ[4]*log((x[1]-x[5])^2+(x[2]-x[6])^2)  +2*(u[3]^2+u[4]^2)    )),
