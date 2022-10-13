@@ -41,6 +41,8 @@ using Infiltrator
 #     end
 # end
 
+
+
 function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
                 nominal_solver=[], nominal_traj=[], obs_time_list = 1:game_horizon-1, 
                 obs_state_list = 1:nx, obs_control_list = 1:nu, no_control=false, x0_mode=false, x0=[]) 
@@ -111,47 +113,47 @@ function loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true,
 end
 
 
-function multi_loss(n_traj, θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
-                nominal_solver=[], nominal_traj=[], obs_time_list = [1:game_horizon-1 for ii in 1:n_traj], 
-                obs_state_list = [1:nx for ii in 1:n_traj], obs_control_list = [1:nu for ii in 1:n_traj]) 
-    nominal_converged = [[] for ii in 1:n_traj]
-    nominal_traj = [[] for ii in 1:n_traj]
-    nominal_strategies = [[] for ii in 1:n_traj]
-    if gradient_mode == false    
-        nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
-        nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)        
-        loss_value = 0
-        for iter in 1:n_traj
-            nominal_converged[iter], nominal_traj[iter], nominal_strategies[iter] = solve(nominal_game, nominal_solver, first(expert_traj[iter].x))
-            loss_value += norm([nominal_traj[iter].x[t][obs_state_list[iter]] for t in obs_time_list[iter]] - [expert_traj[iter].x[t][obs_state_list[iter]] for t in obs_time_list[iter]])^2 + 
-                     norm([nominal_traj[iter].u[t][obs_control_list[iter]] for t in obs_time_list[iter]] - [expert_traj[iter].u[t][obs_control_list[iter]] for t in obs_time_list[iter]])^2
-        end
-        return loss_value, nominal_traj, nominal_strategies, nominal_solver
-    else
-        if specified_solver_and_traj == false
-            nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
-            nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)        
-            for iter in 1:n_trajs
-                nominal_converged[iter], nominal_traj[iter], nominal_strategies[iter] = solve(nominal_game, nominal_solver, first(expert_traj[iter].x))
-            end
-        end
-        costs = parameterized_cost(θ)
-        game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+# function multi_loss(n_traj, θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
+#                 nominal_solver=[], nominal_traj=[], obs_time_list = [1:game_horizon-1 for ii in 1:n_traj], 
+#                 obs_state_list = [1:nx for ii in 1:n_traj], obs_control_list = [1:nu for ii in 1:n_traj]) 
+#     nominal_converged = [[] for ii in 1:n_traj]
+#     nominal_traj = [[] for ii in 1:n_traj]
+#     nominal_strategies = [[] for ii in 1:n_traj]
+#     if gradient_mode == false    
+#         nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
+#         nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)        
+#         loss_value = 0
+#         for iter in 1:n_traj
+#             nominal_converged[iter], nominal_traj[iter], nominal_strategies[iter] = solve(nominal_game, nominal_solver, first(expert_traj[iter].x))
+#             loss_value += norm([nominal_traj[iter].x[t][obs_state_list[iter]] for t in obs_time_list[iter]] - [expert_traj[iter].x[t][obs_state_list[iter]] for t in obs_time_list[iter]])^2 + 
+#                      norm([nominal_traj[iter].u[t][obs_control_list[iter]] for t in obs_time_list[iter]] - [expert_traj[iter].u[t][obs_control_list[iter]] for t in obs_time_list[iter]])^2
+#         end
+#         return loss_value, nominal_traj, nominal_strategies, nominal_solver
+#     else
+#         if specified_solver_and_traj == false
+#             nominal_game = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost(ForwardDiff.value.(θ)))
+#             nominal_solver = iLQSolver(nominal_game, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type=equilibrium_type)        
+#             for iter in 1:n_trajs
+#                 nominal_converged[iter], nominal_traj[iter], nominal_strategies[iter] = solve(nominal_game, nominal_solver, first(expert_traj[iter].x))
+#             end
+#         end
+#         costs = parameterized_cost(θ)
+#         game = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
-        lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
-        if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
-        elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-            traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
-        else
-            @warn "equilibrium_type is wrong!"
-        end
-        # @infiltrate
-        loss_value = norm([traj.x[t][obs_state_list] for t in obs_time_list] - [expert_traj.x[t][obs_state_list] for t in obs_time_list])^2 + 
-                     norm([traj.u[t][obs_control_list] for t in obs_time_list] - [expert_traj.u[t][obs_control_list] for t in obs_time_list])^2
-        return loss_value
-    end
-end
+#         lqg = Differentiable_Solvers.lq_approximation(game, nominal_traj, nominal_solver)
+#         if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
+#             traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+#         elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
+#             traj = Differentiable_Solvers.trajectory(x0, game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+#         else
+#             @warn "equilibrium_type is wrong!"
+#         end
+#         # @infiltrate
+#         loss_value = norm([traj.x[t][obs_state_list] for t in obs_time_list] - [expert_traj.x[t][obs_state_list] for t in obs_time_list])^2 + 
+#                      norm([traj.u[t][obs_control_list] for t in obs_time_list] - [expert_traj.u[t][obs_control_list] for t in obs_time_list])^2
+#         return loss_value
+#     end
+# end
 
 
 function inverse_game_gradient_descent(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector, 
@@ -256,7 +258,6 @@ function inverse_game_gradient_descent_with_x0(θ::Vector, g::GeneralGame, exper
     end
     return x0_next, θ_next, new_loss, gradient_value, equilibrium_type, new_traj, new_solver
 end
-
 
 
 
