@@ -115,7 +115,7 @@ num_clean_traj = 1
 noise_level_list = 0.004:0.004:0.04
 # noise_level_list=[0.0]
 num_noise_level = length(noise_level_list)
-num_obs = 10
+num_obs = 6
 games = []
 x0_set = [x0 for ii in 1:num_clean_traj]
 # θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
@@ -155,7 +155,7 @@ init_x0_list = deepcopy(conv_table_list);
 
 θ₀ = 5*ones(4);
 
-num_test=10
+num_test=6
 test_noise_level=1.0
 test_x0_set = [x0 - [zeros(12);x0[13];zeros(4)] + test_noise_level*[zeros(12);rand(1)[1];zeros(4)] for ii in 1:num_test];
 
@@ -166,7 +166,7 @@ test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_
 
 # obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
 obs_time_list= [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
-obs_state_list = [1,2,3,5,6,7]
+obs_state_list = [1,2,3,5,6,7, 9,10,11]
 obs_control_list = 1:nu
 # obs_state_list = 1:nx
 
@@ -176,7 +176,7 @@ if obs_state_list != 1:nx
     random_init_x0 = true
 end
 for ii in 1:num_clean_traj
-    Threads.@thread for jj in 1:num_noise_level
+    for jj in 1:num_noise_level
         if noise_level_list[jj] == 0.0
             tmp_num_obs = num_obs
         else

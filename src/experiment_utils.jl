@@ -677,7 +677,7 @@ function get_the_best_possible_reward_estimate(x0_set, all_equilibrium_types, so
                 optim_loss_list[index][ii] = loss_table[index][ii][index_list[index][ii]]
             else
                 index_list[index][ii] = argmin(loss_table[index][ii])
-                @infiltrate
+                # @infiltrate
                 θ_list[index][ii] = sol_table[index][ii][index_list[index][ii]]
                 optim_loss_list[index][ii] = loss_table[index][ii][index_list[index][ii]]
             end
