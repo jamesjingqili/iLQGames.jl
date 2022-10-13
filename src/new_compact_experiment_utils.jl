@@ -2,7 +2,7 @@ using ProgressBars
 using Infiltrator
 
 
-function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
+function new_compact_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = true, specified_solver_and_traj = false, 
                 nominal_solver=[], nominal_traj=[], obs_time_list = 1:game_horizon-1, 
                 obs_state_list = 1:nx, obs_control_list = 1:nu, no_control=false, x0_mode=false, x0=[],    static_game=[],static_solver=[], true_game_nx=12+1) 
     # last three items new
@@ -15,21 +15,23 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
     else
         ctrl_coeff = 1
     end
+    tmp_static_game = static_game(θ)
+    tmp_static_solver=static_solver(θ)
     if gradient_mode == false
-        nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]))
+        nominal_converged, nominal_traj, nominal_strategies = solve(tmp_static_game, tmp_static_solver, x0)
         tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(nominal_traj.x[t][obs_state_list]) for t in obs_time_list])))    
         loss_value = norm(tmp2 - tmp1)^2
         return loss_value, nominal_traj, nominal_strategies, static_solver
     else
         if x0_mode==true
             if specified_solver_and_traj == false
-                nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([SVector{true_game_nx}(ForwardDiff.value.(x0[1:true_game_nx]));  SVector{4}(ForwardDiff.value.(θ))])  )
+                nominal_converged, nominal_traj, nominal_strategies = solve(tmp_static_game, tmp_static_solver, SVector{true_game_nx}(ForwardDiff.value.(x0))  )
             end
-            lqg = Differentiable_Solvers.lq_approximation(static_game, nominal_traj, static_solver)
+            lqg = Differentiable_Solvers.lq_approximation(tmp_static_game, nominal_traj, tmp_static_solver)
             if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx}(x0), tmp_static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
             elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx}(x0), tmp_static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
             else
                 @warn "equilibrium_type is wrong!"
             end
@@ -38,13 +40,13 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
             return loss_value
         else
             if specified_solver_and_traj == false
-                nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([SVector{true_game_nx}(ForwardDiff.value.(x0[1:true_game_nx]));  SVector{4}(ForwardDiff.value.(θ))]))
+                nominal_converged, nominal_traj, nominal_strategies = solve(static_game(ForwardDiff.value.(θ)), static_solver(ForwardDiff.value.(θ)), x0)
             end
-            lqg = Differentiable_Solvers.lq_approximation(static_game, nominal_traj, static_solver)
+            lqg = Differentiable_Solvers.lq_approximation(tmp_static_game, nominal_traj, tmp_static_solver)
             if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(x0, tmp_static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
             elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(x0, tmp_static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
             else
                 @warn "equilibrium_type is wrong!"
             end
@@ -58,7 +60,7 @@ end
 
 
 
-function new_inverse_game_gradient_descent_with_x0(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector,
+function new_compact_inverse_game_gradient_descent_with_x0(θ::Vector, g::GeneralGame, expert_traj::SystemTrajectory, x0::SVector,
                                         max_LineSearch_num::Int, parameterized_cost, equilibrium_type=[], Bayesian_belief_update=false, 
                                         specify_current_loss_and_solver=false, current_loss=[], current_traj=[], current_solver=[],
                                         obs_time_list = 1:game_horizon-1, obs_state_list = 1:nx, obs_control_list = 1:nu, initial_step_size=2.0, 
@@ -69,16 +71,16 @@ function new_inverse_game_gradient_descent_with_x0(θ::Vector, g::GeneralGame, e
         equilibrium_type = inverse_game_update_belief(θ, g, expert_traj, x0, parameterized_cost, "FBNE_costate", "OLNE_costate")
     end
     if specify_current_loss_and_solver == false
-        current_loss, current_traj, current_str, current_solver = new_loss(θ,iLQGames.dynamics(g), equilibrium_type, expert_traj, false, false,[],[],
+        current_loss, current_traj, current_str, current_solver = new_compact_loss(θ,dynamics, equilibrium_type, expert_traj, false, false,[],[],
                                                                         obs_time_list, obs_state_list, obs_control_list, no_control, true, x0,
                                                                         static_game,static_solver,true_game_nx)
     end
-    gradient_x0 = ForwardDiff.gradient(x -> new_loss(θ, iLQGames.dynamics(g), equilibrium_type, expert_traj, true, true, current_solver, current_traj,
+    gradient_x0 = ForwardDiff.gradient(x -> new_loss(θ, dynamics, equilibrium_type, expert_traj, true, true, current_solver, current_traj,
                                                                         obs_time_list, obs_state_list, obs_control_list, no_control, true, x,static_game,static_solver,true_game_nx), x0 )
     x0_next = x0[1:true_game_nx]
     for iter in 1:x0_GD_num
         x0_next = x0[1:true_game_nx] - step_size_x0*gradient_x0[1:true_game_nx]
-        new_loss_value, new_traj, new_str, new_solver = new_loss(θ, iLQGames.dynamics(g),equilibrium_type, expert_traj, false, false,[],[],
+        new_loss_value, new_traj, new_str, new_solver = new_loss(θ, dynamics,equilibrium_type, expert_traj, false, false,[],[],
                                                         obs_time_list, obs_state_list, obs_control_list, no_control, true, x0_next,static_game,static_solver,true_game_nx)
         # @infiltrate
         if new_loss_value < current_loss
@@ -132,14 +134,14 @@ function new_objective_inference_with_partial_obs_x0(x0, θ, expert_traj, g, max
     ground_truth_loss = zeros(max_GD_iteration_num)
     x0_estimate = [x0 for iter in 1:max_GD_iteration_num+1]
     for iter in 1:max_GD_iteration_num
-        # @infiltrate
+        @infiltrate
         x0_tmp, sol[iter+1], loss_values[iter+1], gradient[iter], equilibrium_type_list[iter] = new_inverse_game_gradient_descent_with_x0(sol[iter], 
                                                                                 g, expert_traj, x0_estimate[iter], max_LineSearch_num, 
                                                                                 parameterized_cost, equilibrium_type, Bayesian_update, false, [], [],[], 
                                                                                 obs_time_list, obs_state_list, obs_control_list, initial_step_size, 
                                                                                 which_example, no_control, x0_GD_num, step_size_x0, x0_GD_stepsize_shrink_factor
                                                                                 ,static_game,static_solver,true_game_nx)
-        # @infiltrate
+        @infiltrate
         x0_estimate[iter+1] = [[x0_tmp[ii] for ii in 1:length(x0_tmp)]; sol[iter+1]]
         println("iteration: ", iter)
         println("current_loss: ", loss_values[iter+1])
