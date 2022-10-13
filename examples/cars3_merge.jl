@@ -30,7 +30,7 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 
 # platonning
-x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   0.0,     0, 10, 0, 10  )
+x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2,     0, 10, 0, 10  )
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*(x[1])^2  + x[15]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5])^2  + x[17]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
@@ -40,7 +40,7 @@ player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 
-x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10  )
+# x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10  )
 
 
 solver1 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
@@ -72,37 +72,37 @@ ForwardDiff.gradient(x -> new_loss(x, dynamics, "FBNE_costate", expert_traj2, tr
 ForwardDiff.gradient(x -> new_loss([1,1,1,1], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x, static_game, 
                     static_solver,  true_game_nx), [0.5, 3, pi/2, 2,       0.5, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10  ])
 
-x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
-x2_FB, y2_FB = [expert_traj2.x[i][4+1] for i in 1:game_horizon], [expert_traj2.x[i][4+2] for i in 1:game_horizon];
-x3_FB, y3_FB = [expert_traj2.x[i][2*4+1] for i in 1:game_horizon], [expert_traj2.x[i][2*4+2] for i in 1:game_horizon];
-# x4_FB, y4_FB = [expert_traj2.x[i][3*4+1] for i in 1:game_horizon], [expert_traj2.x[i][3*4+2] for i in 1:game_horizon];
+# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+# x2_FB, y2_FB = [expert_traj2.x[i][4+1] for i in 1:game_horizon], [expert_traj2.x[i][4+2] for i in 1:game_horizon];
+# x3_FB, y3_FB = [expert_traj2.x[i][2*4+1] for i in 1:game_horizon], [expert_traj2.x[i][2*4+2] for i in 1:game_horizon];
+# # x4_FB, y4_FB = [expert_traj2.x[i][3*4+1] for i in 1:game_horizon], [expert_traj2.x[i][3*4+2] for i in 1:game_horizon];
 
-anim2 = @animate for i in 1:game_horizon
-    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB",xlims=(-1.5,2.5), ylims=(0,12))
-    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", )
-    plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", )
-    # plot!([x4_FB[i], x4_FB[i]], [y4_FB[i], y4_FB[i]], markershape = :square, label = "player 4, FB", xlims=(-1.5,2.5), ylims=(0,12))
-    plot!([0.5], seriestype = "vline", color = "red", linestyle=:dot, label = "")
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "")
-end
-gif(anim2, "cars3_FB.gif", fps = 10)
+# anim2 = @animate for i in 1:game_horizon
+#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB",xlims=(-1.5,2.5), ylims=(0,12))
+#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", )
+#     plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", )
+#     # plot!([x4_FB[i], x4_FB[i]], [y4_FB[i], y4_FB[i]], markershape = :square, label = "player 4, FB", xlims=(-1.5,2.5), ylims=(0,12))
+#     plot!([0.5], seriestype = "vline", color = "red", linestyle=:dot, label = "")
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "")
+# end
+# gif(anim2, "cars3_FB.gif", fps = 10)
 
-x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-x2_OL, y2_OL = [expert_traj1.x[i][4+1] for i in 1:game_horizon], [expert_traj1.x[i][4+2] for i in 1:game_horizon];
-x3_OL, y3_OL = [expert_traj1.x[i][2*4+1] for i in 1:game_horizon], [expert_traj1.x[i][2*4+2] for i in 1:game_horizon];
-# x4_OL, y4_OL = [expert_traj1.x[i][3*4+1] for i in 1:game_horizon], [expert_traj1.x[i][3*4+2] for i in 1:game_horizon];
+# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+# x2_OL, y2_OL = [expert_traj1.x[i][4+1] for i in 1:game_horizon], [expert_traj1.x[i][4+2] for i in 1:game_horizon];
+# x3_OL, y3_OL = [expert_traj1.x[i][2*4+1] for i in 1:game_horizon], [expert_traj1.x[i][2*4+2] for i in 1:game_horizon];
+# # x4_OL, y4_OL = [expert_traj1.x[i][3*4+1] for i in 1:game_horizon], [expert_traj1.x[i][3*4+2] for i in 1:game_horizon];
 
-anim1 = @animate for i in 1:game_horizon
-    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL",xlims=(-1.5,2.5), ylims=(0,12))
-    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", )
-    plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", )
-    # plot!([x4_OL[i], x4_OL[i]], [y4_OL[i], y4_OL[i]], markershape = :square, label = "player 4, OL", xlims=(-1.5,2.5), ylims=(0,12))
-    plot!([0.5], seriestype = "vline", color = "red", linestyle=:dot, label = "")
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "")
-end
-gif(anim1, "cars3_OL.gif", fps = 10)
+# anim1 = @animate for i in 1:game_horizon
+#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL",xlims=(-1.5,2.5), ylims=(0,12))
+#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", )
+#     plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", )
+#     # plot!([x4_OL[i], x4_OL[i]], [y4_OL[i], y4_OL[i]], markershape = :square, label = "player 4, OL", xlims=(-1.5,2.5), ylims=(0,12))
+#     plot!([0.5], seriestype = "vline", color = "red", linestyle=:dot, label = "")
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "")
+# end
+# gif(anim1, "cars3_OL.gif", fps = 10)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"
@@ -112,7 +112,7 @@ gif(anim1, "cars3_OL.gif", fps = 10)
 
 GD_iter_num = 50
 num_clean_traj = 1
-noise_level_list = 0.004:0.004:0.004
+noise_level_list = 0.004:0.004:0.04
 # noise_level_list=[0.0]
 num_noise_level = length(noise_level_list)
 num_obs = 10
@@ -153,7 +153,7 @@ generalization_error_list = deepcopy(conv_table_list);
 ground_truth_loss_list = deepcopy(conv_table_list);
 init_x0_list = deepcopy(conv_table_list);
 
-θ₀ = ones(4);
+θ₀ = 5*ones(4);
 
 num_test=10
 test_noise_level=1.0
