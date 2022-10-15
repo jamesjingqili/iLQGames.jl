@@ -32,9 +32,9 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
-x0 = SVector(0.2, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0)
+x0 = SVector(0.5, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[1])^2   + 8*(x[8]-2)^2      +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 5*(x[5]-x[1])^2   + 4*(x[7]-pi/2)^2   +5*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
@@ -44,7 +44,7 @@ c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
-θ_true = [0, 10, 0, 10]
+θ_true = [0, 10, 5, 5]
 obs_x_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.x[t]) for t in 1:g.h])))
 obs_u_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.u[t]) for t in 1:g.h])))
 obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
@@ -55,7 +55,7 @@ noisy_obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_exp
 
 function parameterized_cost(θ::Vector)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*(x[1])^2  + θ[2]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5])^2  + θ[4]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2   + θ[4]*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
     )
     return costs
