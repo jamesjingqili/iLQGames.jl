@@ -55,10 +55,10 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
     set_start_value.(θ, θ₀)
     set_start_value.(x, x_init)
     set_start_value.(u, u_init)
-    @constraint(model, θ[1] + θ[2] == 10 )
-    @constraint(model, θ[3] + θ[4] == 10 )
+    @constraint(model, θ[1] + θ[2] <= 20 )
+    @constraint(model, θ[3] + θ[4] <= 20 )
     @constraint(model, θ.>=0)
-    @objective(model, Min, sum((x[ii,end]-obs_x[ii,1])^2 for ii in obs_state_index_list)+sum(sum((x[ii,t] - obs_x[ii,t])^2 for ii in obs_state_index_list ) for t in obs_time_list.+1))
+    @objective(model, Min, sum((x[ii,end]-obs_x[ii,1])^2 for ii in obs_state_index_list)+sum(sum((x[ii,t-1] - obs_x[ii,t])^2 for ii in obs_state_index_list ) for t in obs_time_list.+1))
     for t in 1:g.h # for each time t within the game horizon
         # λ[t] correspond to x[t] - x[t-1]-u[t-1]
         if t != g.h # dJ1/dx

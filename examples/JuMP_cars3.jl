@@ -1,3 +1,5 @@
+# full observation : obs_state_list=1:13
+
 using Distributed
 using iLQGames
 import iLQGames: dx
@@ -30,7 +32,7 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 
 # platonning
-x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
+x0 = SVector(0.6, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[1])^2   + 8*(x[8]-2)^2      +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -51,7 +53,13 @@ obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[
 noisy_obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].x[t]) for t in 1:g.h])))
 noisy_obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].u[t]) for t in 1:g.h])))
 
-
+function parameterized_cost(θ::Vector)
+costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*(x[1])^2  + θ[2]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5])^2  + θ[4]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
+    )
+    return costs
+end
 
 # ------------------------------------ Optimization problem begin ------------------------------------------- #
 
@@ -206,7 +214,9 @@ function two_level_inv_KKT(obs_x, θ₀, obs_time_list, obs_state_list)
     overall_sol = level_2_KKT_x0(feasible_sol[1],feasible_sol[2], obs_x, θ₀, obs_time_list, obs_state_list)
     return overall_sol
 end
-inv_sol=two_level_inv_KKT(obs_x_OL, 5*ones(4), 1:game_horizon-1, 1:nx)
+inv_sol=two_level_inv_KKT(obs_x_FB, 5*ones(4), 1:game_horizon-1, 1:nx)
+
+solution_summary(inv_sol[4])
 
 # anim1 = @animate for i in 1:game_horizon
 #     plot( [for_sol[1][1,i], for_sol[1][1,i]], [for_sol[1][2,i], for_sol[1][2,i]], markershape = :square, label = "player 1, JuMP", xlims = (-0.5, 1.5), ylims = (0, 6))
@@ -383,15 +393,6 @@ for ii in 1:num_clean_traj
         end
     end
 end
-
-# conv_table_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
-# sol_table_list = deepcopy(conv_table_list);
-# loss_table_list = deepcopy(conv_table_list);
-# θ_list_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
-# optim_loss_list_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
-# generalization_error_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
-# ground_truth_loss_list = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
-
 θ₀ = 5*ones(4);
 inv_traj_x_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_traj_u_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
@@ -407,20 +408,17 @@ num_test = 6
 test_noise_level=1.0
 test_x0_set = [x0 - [zeros(12);x0[13]] + test_noise_level*[zeros(12);rand(1)[1]] for ii in 1:num_test];
 test_expert_traj_list, c_test_expert = generate_expert_traj(game, solver, test_x0_set, num_test);
-
-
-# obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
 obs_time_list = [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
 obs_state_list = [1,2,3,5,6,7, 9, 10, 11]
 obs_control_list=[]
 # obs_time_list = 1:game_horizon-1
 # obs_state_list = 1:nx
 # obs_control_list = 1:nu
-index = 1
-Threads.@threads for noise in 1:length(noise_level_list)
+index_value = 1
+for noise in 1:length(noise_level_list)
     for ii in 1:num_obs
-        tmp_expert_traj_x = noisy_expert_traj_list[index][noise][ii].x
-        tmp_expert_traj_u = noisy_expert_traj_list[index][noise][ii].u
+        tmp_expert_traj_x = noisy_expert_traj_list[index_value][noise][ii].x
+        tmp_expert_traj_u = noisy_expert_traj_list[index_value][noise][ii].u
         
         tmp_obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_x[t]) for t in 1:game.h])))
         # tmp_obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_u[t]) for t in 1:game.h])))
@@ -430,13 +428,13 @@ Threads.@threads for noise in 1:length(noise_level_list)
         tmp_inv_loss = objective_value(tmp_inv_model)
         println("The $(ii)-th observation of $(noise)-th noise level")
         # solution_summary(tmp_inv_model)
-        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], 1:game_horizon-1, 1:12, 1:nu, false) 
+        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index_value], false, false, [], [], 1:game_horizon-1, 1:12, 1:nu, false) 
         # @infiltrate
         # tmp_test_sol = [[] for jj in 1:num_test]
         tmp_test_loss_value = zeros(num_test)
         for jj in 1:num_test
             # @infiltrate
-            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:nx, 1:nu,false)
+            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:12, 1:nu,false)
         end
         # @infiltrate
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
@@ -474,6 +472,10 @@ jldsave("1008_baobei_KKT_x0_partial_20_ill$(Dates.now())"; game_horizon, inv_mea
 
 
 
+jldsave("baobei_KKT_clean_3cars_partial$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+    inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+    obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+    obs_x_OL, obs_x_FB)
 
 
 jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_model_list, inv_ground_truth_loss_list,

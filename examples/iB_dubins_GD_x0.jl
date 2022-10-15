@@ -763,8 +763,8 @@ savefig("ground_truth_noise_predicted.pdf")
 # t2 = load("GD_x0_no_control_2car_full_x0_noise_0.032022-10-04T21:24:03.180")
 t1 = load("GD_partial_2cars_x0_baobei")
 t2 = load("baobei_GD_2car_full_x02022-10-06T11_06_02.696")
-t3 = load("KKT_partial_2cars_x0_baobei")
-t4 = load("baobei_KKT_x0_full_20_ill2022-10-07T14:12:04.998")
+t3 = load("KKT_partial_2cars_x0_baobei") # may have new
+t4 = load("baobei_KKT_x0_full_20_ill2022-10-07T14:12:04.998") # may have new
 obs_time_list = [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40];
 obs_state_list = [1,2,3,5,6,7];
 game_horizon=40

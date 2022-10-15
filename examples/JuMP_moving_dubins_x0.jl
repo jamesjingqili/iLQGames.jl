@@ -405,13 +405,13 @@ Threads.@threads for noise in 1:length(noise_level_list)
         tmp_inv_loss = objective_value(tmp_inv_model)
         println("The $(ii)-th observation of $(noise)-th noise level")
         # solution_summary(tmp_inv_model)
-        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], 1:game_horizon-1, 1:12, 1:nu, false) 
+        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index], false, false, [], [], 1:game_horizon-1, 1:8, 1:nu, false) 
         # @infiltrate
         # tmp_test_sol = [[] for jj in 1:num_test]
         tmp_test_loss_value = zeros(num_test)
         for jj in 1:num_test
             # @infiltrate
-            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:12, 1:nu,false)
+            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:8, 1:nu,false)
         end
         # @infiltrate
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
@@ -436,13 +436,13 @@ jldsave("KKT_x0_full_20_ill$(Dates.now())"; game_horizon, inv_mean_generalizatio
     inv_loss_list,  inv_ground_truth_loss_list,
     obs_time_list, obs_state_list)
 
-jldsave("1008_baobei_KKT_x0_full_20_ill$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+jldsave("1015_baobei_KKT_x0_full_10_corrected_state_list$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
     inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
     obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
     obs_x_OL, obs_x_FB)
 
 
-jldsave("1008_baobei_KKT_x0_partial_20_ill$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+jldsave("1015_baobei_KKT_x0_partial_10_corrected_state_list$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
     inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
     obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
     obs_x_OL, obs_x_FB)
