@@ -202,9 +202,9 @@ for ii in 1:num_clean_traj
         tmp_generalization_loss = zeros(num_obs)
         for kk in 1:num_obs
             tmp = zeros(num_test)
-            tmp_ground_truth_loss[kk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false, [],[],1:g.h-1, 1:nx, 1:nu)
+            tmp_ground_truth_loss[kk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false, [],[],1:g.h-1, 1:12, 1:nu)
             for kkk in 1:num_test
-                tmp[kkk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kkk], true, false,[],[],1:g.h-1, 1:nx, 1:nu)
+                tmp[kkk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kkk], true, false,[],[],1:g.h-1, 1:12, 1:nu)
             end
             tmp_generalization_loss[kk] = mean(tmp)
             println("Current iteration: $(jj), $(kk)")
