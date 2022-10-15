@@ -32,7 +32,7 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 
 # platonning
-x0 = SVector(0.6, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0)
+x0 = SVector(0.5, 3, pi/2, 2,       0.4, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[1])^2   + 8*(x[8]-2)^2      +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -437,6 +437,7 @@ for noise in 1:length(noise_level_list)
             tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:12, 1:nu,false)
         end
         # @infiltrate
+
         push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
         # println("$(inv_mean_generalization_loss_list[noise][ii])")
         push!(inv_var_generalization_loss_list[noise][ii], var(tmp_test_loss_value))
@@ -531,7 +532,7 @@ var1 = [var(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1]
 var2 = [var(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
 var3 = [var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
 
-plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
+plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level],ribbons=(var1,var1), label="generalization error")
 plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var2,var2), label = "loss")
 plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var3,var3), label="ground truth")
 

@@ -30,7 +30,9 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 
 # platonning
-x0 = SVector(0.3, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2,     0, 10, 0, 10  )
+# x0 = SVector(0.3, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2,     0, 10, 0, 10  )
+x0 = SVector(0.5, 3, pi/2, 2,       0.4, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0,     0, 10, 0, 10  )
+
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*(x[1])^2  + x[15]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5])^2  + x[17]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
