@@ -32,9 +32,9 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
-x0 = SVector(0.5, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( 10*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 5*(x[5]-x[1])^2   + 4*(x[7]-pi/2)^2   +5*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+x0 = SVector(0, 2, pi/2, 1,       1, 0, pi/2, 1,   0.5, 1,pi/2,1,                   0.2)
+costs = (FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 4*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +4*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
@@ -44,19 +44,19 @@ c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
-θ_true = [0, 10, 5, 5]
+θ_true = [0, 8, 4, 4]
 obs_x_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.x[t]) for t in 1:g.h])))
 obs_u_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.u[t]) for t in 1:g.h])))
 obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
 obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[t]) for t in 1:g.h])))
 
-noisy_obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].x[t]) for t in 1:g.h])))
-noisy_obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].u[t]) for t in 1:g.h])))
+# noisy_obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].x[t]) for t in 1:g.h])))
+# noisy_obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].u[t]) for t in 1:g.h])))
 
 function parameterized_cost(θ::Vector)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*(x[1])^2  + θ[2]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2   + θ[4]*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
+costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*x[1]^2 +θ[2]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +θ[4]*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
     return costs
 end
@@ -69,7 +69,7 @@ function two_level_inv_KKT(obs_x, θ₀, obs_time_list, obs_state_list)
     overall_sol = level_2_KKT_x0(feasible_sol[1],feasible_sol[2], obs_x, θ₀, obs_time_list, obs_state_list)
     return overall_sol
 end
-inv_sol=two_level_inv_KKT(obs_x_FB, 5*ones(4), 1:game_horizon-1, 1:nx)
+inv_sol=two_level_inv_KKT(obs_x_FB, 4*ones(4), 1:game_horizon-1, 1:nx)
 
 solution_summary(inv_sol[4])
 num_clean_traj = 1
@@ -99,7 +99,7 @@ for ii in 1:num_clean_traj
         end
     end
 end
-θ₀ = 5*ones(4);
+θ₀ = 4*ones(4);
 inv_traj_x_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_traj_u_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_sol_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
@@ -299,8 +299,12 @@ plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:
 
 
 
-
-
+plot(obs_x_OL[1,:], obs_x_OL[2,:],color="red")
+plot!(obs_x_OL[5,:], obs_x_OL[6,:], color="blue")
+plot!(obs_x_OL[9,:], obs_x_OL[10,:], color="black")
+plot!(obs_x_FB[1,:], obs_x_FB[2,:],color="red", linestyle=:dash)
+plot!(obs_x_FB[5,:], obs_x_FB[6,:], color="blue",linestyle=:dash)
+plot!(obs_x_FB[9,:], obs_x_FB[10,:], color="black",linestyle=:dash)
 
 
 
