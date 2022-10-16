@@ -32,7 +32,7 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
-x0 = SVector(0, 2, pi/2, 1,       1, 0, pi/2, 1,   0.5, 1,pi/2,1,                   0.2)
+x0 = SVector(0.3, 2, pi/2, 1,       1, 0, pi/2, 1,   0.5, 1,pi/2,1,                   0.1)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( 4*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +2*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -81,9 +81,9 @@ end
 game = g
 solver = solver2
 # The below: generate random expert trajectories
-num_obs = 10
+num_obs = 6
 # noise_level_list = 0.005:0.005:0.05
-noise_level_list = 0.004:0.004:0.04
+noise_level_list = 0.004:0.008:0.04
 num_noise_level = length(noise_level_list)
 num_noise_level = length(noise_level_list)
 noisy_expert_traj_list = [[[zero(SystemTrajectory, game) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj];
@@ -99,6 +99,7 @@ for ii in 1:num_clean_traj
         end
     end
 end
+
 θ₀ = 2*ones(4);
 inv_traj_x_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_traj_u_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
@@ -185,7 +186,9 @@ jldsave("1008_baobei_KKT_x0_partial_20_ill$(Dates.now())"; game_horizon, inv_mea
 jldsave("baobei_KKT_clean_3cars_partial$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
     inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
     obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
-    obs_x_OL, obs_x_FB)
+    obs_x_OL, obs_x_FB, noisy_expert_traj_list)
+
+
 
 
 jldsave("KKT_inverse_$(Dates.now())"; inv_traj_x_list, inv_traj_u_list, inv_sol_list, inv_loss_list, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_model_list, inv_ground_truth_loss_list,
