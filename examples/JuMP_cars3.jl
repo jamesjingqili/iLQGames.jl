@@ -32,9 +32,9 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
-x0 = SVector(0.3, 2, pi/2, 1,       1, 0, pi/2, 1,   0.5, 1,pi/2,1,                   0.1)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( 4*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +2*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0)
+costs = (FunctionPlayerCost((g,x,u,t) -> ( 4*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
@@ -54,8 +54,8 @@ obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.u[
 # noisy_obs_u_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(noisy_expert_traj_list[1][1][1].u[t]) for t in 1:g.h])))
 
 function parameterized_cost(θ::Vector)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*x[1]^2 +θ[2]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +θ[4]*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*x[1]^2 +θ[2]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +θ[4]*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
     return costs
@@ -310,6 +310,29 @@ plot!(obs_x_OL[9,:], obs_x_OL[10,:], color="black")
 plot!(obs_x_FB[1,:], obs_x_FB[2,:],color="red", linestyle=:dash)
 plot!(obs_x_FB[5,:], obs_x_FB[6,:], color="blue",linestyle=:dash)
 plot!(obs_x_FB[9,:], obs_x_FB[10,:], color="black",linestyle=:dash)
+
+x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+x3_FB, y3_FB = [expert_traj2.x[i][9] for i in 1:game_horizon], [expert_traj2.x[i][10] for i in 1:game_horizon];
+anim2 = @animate for i in 1:game_horizon
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
+    plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "")
+end
+gif(anim2, "cars3_FB.gif", fps = 10)
+x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+x3_OL, y3_OL = [expert_traj1.x[i][9] for i in 1:game_horizon], [expert_traj1.x[i][10] for i in 1:game_horizon];
+anim1 = @animate for i in 1:game_horizon
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "") 
+end
+gif(anim1, "cars3_OL.gif", fps = 10)
 
 
 

@@ -35,9 +35,9 @@ dynamics = ThreeCar()
 #          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5])^2  + x[17]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
 #     )
-x0 = SVector(0.3, 2, pi/2, 1,       1, 0, pi/2, 1,   0.5, 1,pi/2,1,                   0.1, 0, 4, 2, 2)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +x[17]*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0, 0, 4, 2, 2)
+costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +x[17]*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
