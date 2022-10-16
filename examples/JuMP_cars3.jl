@@ -81,7 +81,7 @@ end
 game = g
 solver = solver2
 # The below: generate random expert trajectories
-num_obs = 6
+num_obs = 10
 # noise_level_list = 0.005:0.005:0.05
 noise_level_list = 0.004:0.004:0.04
 num_noise_level = length(noise_level_list)
@@ -154,7 +154,9 @@ for noise in 1:length(noise_level_list)
         push!(inv_ground_truth_loss_list[noise][ii], tmp_ground_truth_loss_value)
         push!(inv_ground_truth_computed_traj_list[noise][ii], tmp_ground_truth_computed_traj)
         push!(inv_model_list[noise][ii], tmp_inv_model)
-
+        if termination_status(tmp_inv_model)==NUMERICAL_ERROR
+            println("Failed at $(noise), $(ii)")
+        end
     end
 end
 
