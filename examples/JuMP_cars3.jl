@@ -33,8 +33,8 @@ dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
 x0 = SVector(0, 2, pi/2, 1,       1, 0, pi/2, 1,   0.5, 1,pi/2,1,                   0.2)
-costs = (FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 4*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +4*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+costs = (FunctionPlayerCost((g,x,u,t) -> ( 4*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-1)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +2*(x[8]-1)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
@@ -44,7 +44,7 @@ c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
-θ_true = [0, 8, 4, 4]
+θ_true = [0, 4, 2, 2]
 obs_x_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.x[t]) for t in 1:g.h])))
 obs_u_FB = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj2.u[t]) for t in 1:g.h])))
 obs_x_OL = transpose(mapreduce(permutedims, vcat, Vector([Vector(expert_traj1.x[t]) for t in 1:g.h])))
@@ -99,7 +99,7 @@ for ii in 1:num_clean_traj
         end
     end
 end
-θ₀ = 4*ones(4);
+θ₀ = 2*ones(4);
 inv_traj_x_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_traj_u_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_sol_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
