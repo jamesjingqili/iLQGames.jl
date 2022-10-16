@@ -45,7 +45,7 @@ function level_1_KKT_x0(obs_x, obs_time_list, obs_state_list)
     return value.(x), value.(u), model
 end
 # costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*x[1]^2 +θ[2]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
-#          FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +θ[4]*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+#          FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5]-x[1])^2 + θ[4]*x[5]^2   +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
 #     )
 function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_index_list)
@@ -58,8 +58,8 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
     set_start_value.(θ, θ₀)
     set_start_value.(x, x_init)
     set_start_value.(u, u_init)
-    @constraint(model, θ[1] + θ[2] <= 20 )
-    @constraint(model, θ[3] + θ[4] <= 20 )
+    @constraint(model, θ[1] + θ[2] <= 10 )
+    @constraint(model, θ[3] + θ[4] <= 10 )
     @constraint(model, θ.>=0)
     @objective(model, Min, sum((x[ii,end]-obs_x[ii,1])^2 for ii in obs_state_index_list)+sum(sum((x[ii,t] - obs_x[ii,t])^2 for ii in obs_state_index_list ) for t in obs_time_list.+1))
     for t in 1:g.h # for each time t within the game horizon
@@ -98,10 +98,10 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
             @constraint(model, λ[2,2,t]                 - λ[2,2,t+1] == 0)
             @NLconstraint(model, λ[2,3,t]               - λ[2,3,t+1] + λ[2,1,t+1]*ΔT*x[4,t]*sin(x[3,t]) - λ[2,2,t+1]*ΔT*x[4,t]*cos(x[3,t])  == 0)
             @NLconstraint(model, λ[2,4,t]                 - λ[2,4,t+1] - λ[2,1,t+1]*ΔT*cos(x[3,t]) - λ[2,2,t+1]*ΔT*sin(x[3,t]) == 0)
-            @NLconstraint(model, λ[2,5,t] +2*θ[3]*(x[5,t]-x[1,t])   -2*(x[5,t]-x[9,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2)          - λ[2,5,t+1] == 0)
+            @NLconstraint(model, λ[2,5,t] +2*θ[4]*x[5,t] +2*θ[3]*(x[5,t]-x[1,t])   -2*(x[5,t]-x[9,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2)          - λ[2,5,t+1] == 0)
             @NLconstraint(model, λ[2,6,t] -2*(x[6,t]-x[10,t])/((x[5,t]-x[9,t])^2 + (x[6,t]-x[10,t])^2)              - λ[2,6,t+1] == 0)
             @NLconstraint(model, λ[2,7,t] +8*(x[7,t]-pi/2)              - λ[2,7,t+1] + λ[2,5,t+1]*ΔT*x[8,t]*sin(x[7,t]) - λ[2,6,t+1]*ΔT*x[8,t]*cos(x[7,t]) == 0)
-            @NLconstraint(model, λ[2,8,t] +2*θ[4]*(x[8,t]-2)              - λ[2,8,t+1] - λ[2,5,t+1]*ΔT*cos(x[7,t]) - λ[2,6,t+1]*ΔT*sin(x[7,t]) == 0)
+            @NLconstraint(model, λ[2,8,t] +4*(x[8,t]-2)              - λ[2,8,t+1] - λ[2,5,t+1]*ΔT*cos(x[7,t]) - λ[2,6,t+1]*ΔT*sin(x[7,t]) == 0)
             @NLconstraint(model, λ[2,9,t] -2*(x[9,t]-x[5,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2)              - λ[2,9,t+1] == 0)
             @NLconstraint(model, λ[2,10,t] -2*(x[10,t]-x[6,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2)             - λ[2,10,t+1] == 0)
             @NLconstraint(model, λ[2,11,t]              - λ[2,11,t+1] + λ[2,9,t+1]*ΔT*x[12,t]*sin(x[11,t]) - λ[2,10,t+1]*ΔT*x[12,t]*cos(x[11,t]) == 0)
@@ -112,10 +112,10 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
             @constraint(model, λ[2,2,t] == 0)
             @NLconstraint(model, λ[2,3,t] == 0)
             @NLconstraint(model, λ[2,4,t] == 0)
-            @NLconstraint(model, λ[2,5,t] +2*θ[3]*(x[5,t]-x[1,t])  -2*(x[5,t]-x[9,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2) == 0)
+            @NLconstraint(model, λ[2,5,t] +2*θ[4]*x[5,t] +2*θ[3]*(x[5,t]-x[1,t])  -2*(x[5,t]-x[9,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2) == 0)
             @NLconstraint(model, λ[2,6,t] -2*(x[6,t]-x[10,t])/((x[5,t]-x[9,t])^2 + (x[6,t]-x[10,t])^2)== 0)
             @NLconstraint(model, λ[2,7,t] +8*(x[7,t]-pi/2)== 0)
-            @NLconstraint(model, λ[2,8,t] +2*θ[4]*(x[8,t]-2)== 0)
+            @NLconstraint(model, λ[2,8,t] +4*(x[8,t]-2)== 0)
             @NLconstraint(model, λ[2,9,t] -2*(x[9,t]-x[5,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2)== 0)
             @NLconstraint(model, λ[2,10,t] -2*(x[10,t]-x[6,t])/((x[5,t]-x[9,t])^2+(x[6,t]-x[10,t])^2)== 0)
             @NLconstraint(model, λ[2,11,t] == 0)
