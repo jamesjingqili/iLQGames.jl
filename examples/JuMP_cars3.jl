@@ -79,7 +79,7 @@ if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
     @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
 end
 game = g
-solver = solver1
+solver = solver2
 # The below: generate random expert trajectories
 num_obs = 6
 # noise_level_list = 0.005:0.005:0.05

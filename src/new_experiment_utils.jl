@@ -18,7 +18,7 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
     if gradient_mode == false
         nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]))
         tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(nominal_traj.x[t][obs_state_list]) for t in obs_time_list])))    
-        loss_value = norm(tmp2 - tmp1)^2
+        loss_value = norm(tmp2 - tmp1)^2 + 1/1000*x0[end-3:end].*x0[end-3:end]
         return loss_value, nominal_traj, nominal_strategies, static_solver
     else
         if x0_mode==true
@@ -34,7 +34,7 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
                 @warn "equilibrium_type is wrong!"
             end
             tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(traj.x[t][obs_state_list]) for t in obs_time_list])))
-            loss_value = norm(tmp1-tmp2)^2
+            loss_value = norm(tmp1-tmp2)^2 + 1/1000*x0[end-3:end].*x0[end-3:end]
             return loss_value
         else
             if specified_solver_and_traj == false
@@ -49,7 +49,7 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
                 @warn "equilibrium_type is wrong!"
             end
             tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(traj.x[t][obs_state_list]) for t in obs_time_list])))
-            loss_value = norm(tmp1-tmp2)^2
+            loss_value = norm(tmp1-tmp2)^2 + 1/1000*x0[end-3:end].*x0[end-3:end]
             return loss_value
         end
     end
@@ -73,6 +73,8 @@ function new_inverse_game_gradient_descent_with_x0(θ::Vector, g::GeneralGame, e
                                                                         obs_time_list, obs_state_list, obs_control_list, no_control, true, x0,
                                                                         static_game,static_solver,true_game_nx)
     end
+    # cfg1=
+    # cfg2=
     gradient_x0 = ForwardDiff.gradient(x -> new_loss(θ, iLQGames.dynamics(g), equilibrium_type, expert_traj, true, true, current_solver, current_traj,
                                                                         obs_time_list, obs_state_list, obs_control_list, no_control, true, x,static_game,static_solver,true_game_nx), x0 )
     x0_next = x0[1:true_game_nx]
