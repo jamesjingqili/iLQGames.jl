@@ -20,7 +20,7 @@ include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 num_players=3
-nx, nu, ΔT, game_horizon = 4*num_players+1+4, 2*num_players, 0.1, 40
+nx, nu, ΔT, game_horizon = 4*num_players+1+4, 2*num_players, 0.1, 30
 struct ThreeCar <: ControlSystem{ΔT,nx,nu} end
 dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2], 
                                         x[8]cos(x[7]),   x[8]sin(x[7]),   u[3], u[4],
@@ -36,7 +36,7 @@ dynamics = ThreeCar()
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
 #     )
 # x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
-x0 = SVector(0.4, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.1, 0, 8, 8, 0)
+x0 = SVector(0.3, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.1, 0, 8, 8, 0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2  +x[17]*x[5]^2  +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -144,8 +144,9 @@ test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_
 # solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
 
 # obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
-obs_time_list= [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
-obs_state_list = [1,2,3,5,6,7, 9,10,11]
+# obs_time_list= [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
+obs_time_list = [1:10; 21:g.h-1]
+obs_state_list = [1,2,3,5,6,7, 9,10,11,13]
 obs_control_list = 1:nu
 # obs_state_list = 1:nx
 
@@ -191,60 +192,6 @@ for ii in 1:num_clean_traj
         # push!(generalization_error_list[ii][jj], generalization_error)
     end
 end
-
-
-
-
-
-
-for ii in 1:num_clean_traj
-    for jj in 1:4
-        if noise_level_list[jj] == 0.0
-            tmp_num_obs = num_obs
-        else
-            tmp_num_obs = num_obs
-        end
-        if random_init_x0 == true
-            init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]-[0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][4],
-                        0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][8],
-                        0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][12],0,0,0,0,0] + (0.8*ones(nx)+0.4*rand(nx)).*[0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0]  for kk in 1:tmp_num_obs]
-        else
-            init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]  for kk in 1:tmp_num_obs]
-        end
-        println("Now the $(jj)-th noise level")
-        conv_table,x0_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = new_run_experiment_x0(g,θ₀,init_x0, 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15, 1e-4, 
-                                                                                                obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.001, 
-                                                                                                true, 10.0,expert_traj_list[ii],true,false,[],true,
-                                                                                                10, 0.1, 0.1, static_game, static_solver, true_game_nx )
-        θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single(init_x0, ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
-        # generalization_error = zeros(num_test)
-        # ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
-        # for kk in 1:num_test
-        #     generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],1:g.h-1, 1:nx, 1:nu)
-        # end
-        push!(conv_table_list[ii][jj], conv_table)
-        push!(x0_table_list[ii][jj], x0_table)
-        push!(init_x0_list[ii][jj], init_x0)
-        push!(sol_table_list[ii][jj], sol_table)
-        push!(loss_table_list[ii][jj], loss_table)
-        push!(grad_table_list[ii][jj], grad_table)
-        push!(equi_table_list[ii][jj], equi_table)
-        push!(iter_table_list[ii][jj], iter_table)
-        # push!(comp_time_table_list[ii][jj], comp_time_table)
-        push!(θ_list_list[ii][jj], θ_list)
-        push!(index_list_list[ii][jj], index_list)
-        push!(optim_loss_list_list[ii][jj], optim_loss_list)
-        push!(ground_truth_loss_list[ii][jj], ground_truth_loss)
-        # push!(generalization_error_list[ii][jj], generalization_error)
-    end
-end
-
-
-
-
-
-
 
 
 
