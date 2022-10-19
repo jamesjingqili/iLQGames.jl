@@ -32,7 +32,7 @@ dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2]
 dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
-x0 = SVector(0.3, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.1)
+x0 = SVector(1, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -73,9 +73,26 @@ end
 inv_sol=two_level_inv_KKT(obs_x_FB, 4*ones(4), 1:game_horizon-1, 1:nx)
 
 solution_summary(inv_sol[4])
-num_clean_traj = 1
+num_clean_traj = 6
 x0_set = [x0 for ii in 1:num_clean_traj]
+
+
+
 expert_traj_list, c_expert = generate_expert_traj(g, solver2, x0_set, num_clean_traj)
+
+
+# solver_list=[]
+# for ii in 1:num_clean_traj-1
+#     tmp_g = GeneralGame(game_horizon, player_inputs, dynamics, parameterized_cost([0,8+2*rand(1)[1],8+2*rand(1)[1],0]))
+#     tmp_solver = iLQSolver(tmp_g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
+#     tmp_expert_traj_list, tmp_c_expert = generate_expert_traj(tmp_g, tmp_solver, x0_set, num_clean_traj)
+#     push!(expert_traj_list, tmp_expert_traj_list[1])
+#     push!(c_expert, tmp_c_expert)
+#     push!(solver_list, tmp_solver)
+# end
+
+
+
 if sum([c_expert[ii]==false for ii in 1:length(c_expert)]) >0
     @warn "regenerate expert demonstrations because some of the expert demonstration not converged!!!"
 end
@@ -118,53 +135,50 @@ test_x0_set = [x0 - [zeros(12);x0[13]] + test_noise_level*[zeros(12);rand(1)[1]]
 test_expert_traj_list, c_test_expert = generate_expert_traj(game, solver, test_x0_set, num_test);
 # obs_time_list = [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
 obs_time_list = [1:10; 21:g.h-1]
-obs_state_list = [1,2,3,5,6,7, 9, 10, 11,13]
+obs_state_list = [1,2,3,5,6,7, 9, 10, 11]
 obs_control_list=[]
 # obs_time_list = 1:game_horizon-1
 # obs_state_list = 1:nx
 # obs_control_list = 1:nu
-index_value = 1
-for noise in 1:length(noise_level_list)
-    for ii in 1:num_obs
-        # solved_KKT=false
-        # while solved_KKT==false
-        # tmp = generate_noisy_observation(nx, nu, game, expert_traj_list[index_value], noise_level_list[noise], 1)    
-        tmp_expert_traj_x = noisy_expert_traj_list[index_value][noise][ii].x
-        tmp_expert_traj_u = noisy_expert_traj_list[index_value][noise][ii].u
-        # tmp_expert_traj_x=tmp[1].x
-        # tmp_expert_traj_u=tmp[1].u
-        tmp_obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_x[t]) for t in 1:game.h])))
-        # tmp_obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_u[t]) for t in 1:game.h])))
-        # tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = KKT_highway_inverse_game_solve(tmp_obs_x[:,2:end], tmp_obs_u, θ₀, x0_set[index], obs_time_list, obs_state_list, obs_control_list)
-        tmp_sol = two_level_inv_KKT(tmp_obs_x, θ₀, obs_time_list, obs_state_list)
-        tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = tmp_sol[1], tmp_sol[2], tmp_sol[3], tmp_sol[4];
-        tmp_inv_loss = objective_value(tmp_inv_model)
-        # solution_summary(tmp_inv_model)
-        tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index_value], false, false, [], [], 1:game_horizon-1, 1:12, 1:nu, false) 
-        # @infiltrate
-        # tmp_test_sol = [[] for jj in 1:num_test]
-        tmp_test_loss_value = zeros(num_test)
-        for jj in 1:num_test
-            tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:12, 1:nu,false)
+for index_value in 1:6
+    for noise in 1:length(noise_level_list)
+        for ii in 1:num_obs
+            # solved_KKT=false
+            # while solved_KKT==false
+            # tmp = generate_noisy_observation(nx, nu, game, expert_traj_list[index_value], noise_level_list[noise], 1)    
+            tmp_expert_traj_x = noisy_expert_traj_list[index_value][noise][ii].x
+            tmp_expert_traj_u = noisy_expert_traj_list[index_value][noise][ii].u
+            # tmp_expert_traj_x=tmp[1].x
+            # tmp_expert_traj_u=tmp[1].u
+            tmp_obs_x = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_x[t]) for t in 1:game.h])))
+            # tmp_obs_u = transpose(mapreduce(permutedims, vcat, Vector([Vector(tmp_expert_traj_u[t]) for t in 1:game.h])))
+            # tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = KKT_highway_inverse_game_solve(tmp_obs_x[:,2:end], tmp_obs_u, θ₀, x0_set[index], obs_time_list, obs_state_list, obs_control_list)
+            tmp_sol = two_level_inv_KKT(tmp_obs_x, θ₀, obs_time_list, obs_state_list)
+            tmp_inv_traj_x, tmp_inv_traj_u, tmp_inv_sol, tmp_inv_model = tmp_sol[1], tmp_sol[2], tmp_sol[3], tmp_sol[4];
+            tmp_inv_loss = objective_value(tmp_inv_model)
+            # solution_summary(tmp_inv_model)
+            tmp_ground_truth_loss_value, tmp_ground_truth_computed_traj, _, _=loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", expert_traj_list[index_value], false, false, [], [], 1:game_horizon-1, 1:12, 1:nu, false) 
+            # @infiltrate
+            # tmp_test_sol = [[] for jj in 1:num_test]
+            tmp_test_loss_value = zeros(num_test)
+            for jj in 1:num_test
+                tmp_test_loss_value[jj], _,_,_ = loss(tmp_inv_sol, iLQGames.dynamics(game), "FBNE_costate", test_expert_traj_list[jj], false, false, [],[],1:game_horizon-1, 1:12, 1:nu,false)
+            end
+            println("The $(ii)-th observation of $(noise)-th noise level")
+            push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
+            # println("$(inv_mean_generalization_loss_list[noise][ii])")
+            push!(inv_var_generalization_loss_list[noise][ii], var(tmp_test_loss_value))
+            push!(inv_sol_list[noise][ii], tmp_inv_sol)
+            push!(inv_loss_list[noise][ii], objective_value(tmp_inv_model))
+            push!(inv_traj_x_list[noise][ii], tmp_inv_traj_x)
+            push!(inv_traj_u_list[noise][ii], tmp_inv_traj_u)
+            push!(inv_ground_truth_loss_list[noise][ii], tmp_ground_truth_loss_value)
+            push!(inv_ground_truth_computed_traj_list[noise][ii], tmp_ground_truth_computed_traj)
+            push!(inv_model_list[noise][ii], tmp_inv_model)
+            if termination_status(tmp_inv_model)==NUMERICAL_ERROR
+                println("Failed at $(noise), $(ii)")
+            end
         end
-        # if termination_status(tmp_inv_model)!=NUMERICAL_ERROR
-            # solved_KKT=true
-        println("The $(ii)-th observation of $(noise)-th noise level")
-        push!(inv_mean_generalization_loss_list[noise][ii], mean(tmp_test_loss_value))
-        # println("$(inv_mean_generalization_loss_list[noise][ii])")
-        push!(inv_var_generalization_loss_list[noise][ii], var(tmp_test_loss_value))
-        push!(inv_sol_list[noise][ii], tmp_inv_sol)
-        push!(inv_loss_list[noise][ii], objective_value(tmp_inv_model))
-        push!(inv_traj_x_list[noise][ii], tmp_inv_traj_x)
-        push!(inv_traj_u_list[noise][ii], tmp_inv_traj_u)
-        push!(inv_ground_truth_loss_list[noise][ii], tmp_ground_truth_loss_value)
-        push!(inv_ground_truth_computed_traj_list[noise][ii], tmp_ground_truth_computed_traj)
-        push!(inv_model_list[noise][ii], tmp_inv_model)
-        if termination_status(tmp_inv_model)==NUMERICAL_ERROR
-            println("Failed at $(noise), $(ii)")
-        end
-        # end
-        # end
     end
 end
 
@@ -190,11 +204,25 @@ jldsave("1008_baobei_KKT_x0_partial_20_ill$(Dates.now())"; game_horizon, inv_mea
 
 
 
-jldsave("baobei_KKT_clean_3cars_partial$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+jldsave("Indi_var_KKT_clean_3cars_partial$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
     inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
     obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
-    obs_x_OL, obs_x_FB, noisy_expert_traj_list)
+    obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
 
+jldsave("Indi_var_KKT_clean_3cars_full$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+           inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+           obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+           obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
+
+jldsave("Indianna_var_KKT_clean_3cars_partial$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+    inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+    obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+    obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
+
+jldsave("Indianna_var_KKT_clean_3cars_full$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+           inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+           obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+           obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
 
 
 

@@ -547,18 +547,36 @@ savefig("traj_compare_OLNE.pdf")
 
 
 
-# Oct. 5th
+# Oct. 18th
 t1=load("KKT_partial_2cars_x0_baobei")
+t2=load("GD_partial_2cars_x0_baobei")
+t3=load("baobei_KKT_x0_full_20_ill2022-10-07T14:12:04.998")
+t4=load("baobei_GD_2car_full_x02022-10-06T11_06_02.696")
+noise_level_list = 0.004:0.004:0.04
+num_obs=10
+num_noise_level = length(noise_level_list)
 
 
+plot_size = (800,600)
+inv_mean_generalization_loss_list = t1["inv_mean_generalization_loss_list"]
+inv_loss_list = t1["inv_loss_list"]
+inv_ground_truth_loss_list = t1["inv_ground_truth_loss_list"]
+var1 = [var(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var2 = [var(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var3 = [var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+subplt1=plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level],ribbons=(var1,var1),color=:blue, label="generalization error", xlabel="noise level")
+subplt1=plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var2,var2), color=:red, label = "unregularized loss")
+subplt1=plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], ribbons=(var3,var3), color=:orange,label="ground truth error")
+display(subplt1)
 
+subplt2 = plot([t1["expert_traj_list"][1].x[t][1] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][2] for t in 1:game_horizon], color="red", label="player 1, ground truth, σ = $(t1["noise_level_list"][noise])", size = plot_size, xlabel="x", ylabel="y")
+subplt2 = plot!([t1["expert_traj_list"][1].x[t][5] for t in 1:game_horizon], [t1["expert_traj_list"][1].x[t][6] for t in 1:game_horizon], color="blue",label="player 2, ground truth, σ = $(t1["noise_level_list"][noise])")
+subplt2 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][1] for t in obs_time_list], [t1["noisy_expert_traj_list"][1][noise][1].x[t][2] for t in obs_time_list], markershape=:x, color="red",label="player 1, noisy observation partial, σ = $(t1["noise_level_list"][noise])")
+subplt2 = scatter!([t1["noisy_expert_traj_list"][1][noise][1].x[t][5] for t in obs_time_list], [t1["noisy_expert_traj_list"][1][noise][1].x[t][6] for t in obs_time_list], markershape=:x, color="blue",label="player 2, noisy observation partial, σ = $(t1["noise_level_list"][noise])")
+display(subplt2)
 
-
-
-
-
-
-
+fullplt = plot(subplt1, subplt2 layout=(1,2))
+display(fullplt)
 
 
 
