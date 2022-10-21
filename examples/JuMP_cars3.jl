@@ -223,6 +223,15 @@ jldsave("Indianna_var_KKT_clean_3cars_full$(Dates.now())"; game_horizon, inv_mea
            inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
            obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
            obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
+jldsave("Indianna_c_var_KKT_clean_3cars_partial$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+    inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+    obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+    obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
+
+jldsave("Indianna_c_var_KKT_clean_3cars_full$(Dates.now())"; game_horizon, inv_mean_generalization_loss_list, inv_var_generalization_loss_list, inv_sol_list,
+           inv_loss_list,  inv_ground_truth_loss_list,inv_traj_x_list, inv_traj_u_list,
+           obs_time_list, obs_state_list, test_noise_level, x0, noise_level_list, num_test, test_expert_traj_list, expert_traj_list,
+           obs_x_OL, obs_x_FB, noisy_expert_traj_list, var1,var2,var3)
 
 
 
