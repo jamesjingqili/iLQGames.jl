@@ -36,7 +36,7 @@ dynamics = ThreeCar()
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
 #     )
 # x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
-x0 = SVector(1, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0, 0, 8, 8, 0)
+x0 = SVector(0.4, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2  +x[17]*x[5]^2  +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -89,7 +89,7 @@ ForwardDiff.gradient(x -> new_loss([1,1,1,1], dynamics, "FBNE_costate", expert_t
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 50
+GD_iter_num = 80
 num_clean_traj = 1
 noise_level_list = 0.004:0.008:0.04
 # noise_level_list=[0.0]
@@ -173,7 +173,7 @@ for ii in 1:num_clean_traj
         conv_table,x0_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = new_run_experiment_x0(g,θ₀,init_x0, 
                                                                                                 noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15, 1e-4, 
                                                                                                 obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.001, 
-                                                                                                true, 10.0,expert_traj_list[ii],true,false,[],true,
+                                                                                                true, 10.0,expert_traj_list[ii],    true   ,false,[],true,
                                                                                                 10, 0.1, 0.1, static_game, static_solver, true_game_nx )
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single(init_x0, ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
         push!(conv_table_list[ii][jj], conv_table)
@@ -268,6 +268,18 @@ jldsave("Indy_baobei_GD_3car_full_x0$(Dates.now())"; noise_level_list, nx, nu, �
     list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
 
 jldsave("Indy_baobei_GD_3car_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
+    # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
+    list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
+
+jldsave("GD_Indy_baobei_GD_3car_full_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
+    # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
+    list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
+
+jldsave("GD_Indy_baobei_GD_3car_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
@@ -676,6 +688,7 @@ savefig("Indy_partial_x0.pdf")
 savefig("Infy_full_x0.pdf")
 
 
+# -------------------------------------- Oct. 22
 
 
 
