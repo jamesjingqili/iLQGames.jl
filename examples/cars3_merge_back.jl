@@ -19,66 +19,69 @@ include("../src/diff_solver.jl")
 include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
-
-# parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 9, 4, 0.1, 40
-
-# setup the dynamics
-struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end
-# state: (px, py, phi, v)
-dx(cs::DoubleUnicycle, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
-                                    x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4],0)
-dynamics = DoubleUnicycle()
-
-# costs = (FunctionPlayerCost((g, x, u, t) -> ( 6*(x[5]-x[9])^2 + 0*(x[1])^2 + 4*(u[1]^2 + u[2]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
-#          FunctionPlayerCost((g, x, u, t) -> ( 4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + 4*(u[3]^2 + u[4]^2) - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> (  8*(x[5]-x[9])^2  +  2*(u[1]^2 + u[2]^2) )),
-         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-x[1])^2  +  4*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ))   )
-
-# indices of inputs that each player controls
-player_inputs = (SVector(1,2), SVector(3,4))
-# the horizon of the game
+num_players=3
+nx, nu, ΔT, game_horizon = 4*num_players+1+4, 2*num_players, 0.1, 30
+struct ThreeCar <: ControlSystem{ΔT,nx,nu} end
+dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2], 
+                                        x[8]cos(x[7]),   x[8]sin(x[7]),   u[3], u[4],
+                                        x[12]cos(x[11]), x[12]sin(x[11]), u[5], u[6],
+                                        0
+                                        )
+dynamics = ThreeCar()
+# platonning
+# x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2,     0, 10, 0, 10  )
+# x0 = SVector(0.4, 3, pi/2, 2,       0.4, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.0,     0, 10, 0, 10  )
+# costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*(x[1])^2  + x[15]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+#          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5])^2  + x[17]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
+#          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
+#     )
+# x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
+x0 = SVector(1, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0)
+costs = (FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[1])^2   +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
+    )
+player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,0)
-c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
+# x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10  )
+
+
+solver1 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
+c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 
+# function parameterized_cost(θ::Vector)
+# costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*(x[1])^2  + x[15]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+#          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5])^2  + x[17]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
+#          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
+#     )
+#     return costs
+# end
 function parameterized_cost(θ::Vector)
-    costs = (FunctionPlayerCost((g, x, u, t) -> (  θ[1]*(x[5]-x[9])^2  +  θ[2]*x[1]^2 +  2*(u[1]^2 + u[2]^2) )),
-             FunctionPlayerCost((g, x, u, t) -> (  θ[3]*(x[5]-x[1])^2  +  θ[4]*(x[8]-1)^2 + 2*(u[3]^2 + u[4]^2) ))   )
+costs = (FunctionPlayerCost((g,x,u,t) -> ( θ[1]*(x[1])^2  + θ[2]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( θ[3]*(x[5])^2  + θ[4]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
+         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
+    )
     return costs
 end
-
-# θ_true = [10, 1, 1, 4, 1]
-θ_true = [8, 0, 4, 4]
-
-# ForwardDiff.gradient(x -> loss([8,0,4,4], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x), [0.02,0.5, pi/2, 1, 1,0,pi/2,1,0.1])
-# ForwardDiff.gradient(x -> loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, []), [9,0,4,4])
+θ_true = [0, 8, 8, 0]
 
 
-# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
-# x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
-# anim2 = @animate for i in 1:game_horizon
-#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "")
-# end
-# gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
-# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-# x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
-# anim1 = @animate for i in 1:game_horizon
-#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "") 
-# end
-# gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
+tmp = new_loss([1,1,1,1], dynamics, "FBNE_costate", expert_traj2, false, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, [], static_game, static_solver, true_game_nx)
+
+
+include("new_experiment_utils.jl")
+static_game = g
+static_solver = solver2
+true_game_nx = 13
+ForwardDiff.gradient(x -> new_loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, [], 
+                    static_game, static_solver, true_game_nx), [1,1,1,1])
+
+ForwardDiff.gradient(x -> new_loss([1,1,1,1], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x, static_game, 
+                    static_solver,  true_game_nx), [0.5, 3, pi/2, 2,       0.5, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10  ])
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"
@@ -86,17 +89,17 @@ end
 # Y1: state prediction loss, mean and variance
 # Y2: generalization loss, mean and variance
 
-GD_iter_num = 50
+GD_iter_num = 80
 num_clean_traj = 1
-noise_level_list = 0.004:0.004:0.04
+noise_level_list = 0.004:0.008:0.04
 # noise_level_list=[0.0]
 num_noise_level = length(noise_level_list)
-num_obs = 10
+num_obs = 6
 games = []
 x0_set = [x0 for ii in 1:num_clean_traj]
 # θ_true = [2.0;2.0;1.0;2.0;2.0;1.0;0.0;0.0]
 
-c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,parameterized_cost,["FBNE_costate","FBNE_costate"])
+c_expert,expert_traj_list,expert_equi_list=generate_traj(g,x0_set,costs,["FBNE_costate","FBNE_costate"])
 noisy_expert_traj_list = [[[zero(SystemTrajectory, g) for kk in 1:num_obs] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
 
 for ii in 1:num_clean_traj
@@ -131,10 +134,9 @@ init_x0_list = deepcopy(conv_table_list);
 
 θ₀ = 4*ones(4);
 
-num_test=10
-# test_x0_set = [x0+0.3*rand(1)[1]*[0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0 ,0.0,1] for ii in 1:num_test]
+num_test=6
 test_noise_level=1.0
-test_x0_set = [x0 - [0,0,0,0,0,0,0,0,x0[end]] + test_noise_level*[0,0,0,0,0,0,0,0,rand(1)[1]] for ii in 1:num_test];
+test_x0_set = [x0 - [zeros(12);x0[13];zeros(4)] + test_noise_level*[zeros(12);rand(1)[1];zeros(4)] for ii in 1:num_test];
 
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
@@ -142,8 +144,9 @@ test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_
 # solver_per_thread = [deepcopy(solver2) for _ in 1:Threads.nthreads()]
 
 # obs_time_list= [1,2,3,4,5,6,11,12,13,14,15,16,21,22,23,24,25,26,31,32,33,34,35,36]
-obs_time_list= [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
-obs_state_list = [1,2,3,5,6,7,9]
+# obs_time_list= [1,2,3,4,5,6,7,8,9,10,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
+obs_time_list = [1:10; 21:g.h-1]
+obs_state_list = [1,2,3,5,6,7, 9,10,11,13]
 obs_control_list = 1:nu
 # obs_state_list = 1:nx
 
@@ -160,22 +163,19 @@ for ii in 1:num_clean_traj
             tmp_num_obs = num_obs
         end
         if random_init_x0 == true
-            init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]-[0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][4],0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][8],0] + (0.8*ones(9)+0.4*rand(9)).*[0,0,0,1,0,0,0,1,0]  for kk in 1:tmp_num_obs]
+            init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]-[0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][4],
+                        0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][8],
+                        0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][12],0,0,0,0,0] + (0.8*ones(nx)+0.4*rand(nx)).*[0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0]  for kk in 1:tmp_num_obs]
         else
             init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]  for kk in 1:tmp_num_obs]
         end
         println("Now the $(jj)-th noise level")
-        conv_table,x0_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = run_experiment_x0(g,θ₀,init_x0, 
-                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 20, 1e-4, 
+        conv_table,x0_table,sol_table,loss_table,grad_table,equi_table,iter_table,ground_truth_loss = new_run_experiment_x0(g,θ₀,init_x0, 
+                                                                                                noisy_expert_traj_list[ii][jj], parameterized_cost, GD_iter_num, 15, 1e-4, 
                                                                                                 obs_time_list,obs_state_list, obs_control_list, "FBNE_costate", 0.001, 
-                                                                                                true, 10.0,expert_traj_list[ii],true,false,[],true,
-                                                                                                10, 0.1, 0.1)
+                                                                                                true, 10.0,expert_traj_list[ii],    false   ,false,[],true,
+                                                                                                10, 0.1, 0.1, static_game, static_solver, true_game_nx )
         θ_list, index_list, optim_loss_list = get_the_best_possible_reward_estimate_single(init_x0, ["FBNE_costate","FBNE_costate"], sol_table, loss_table, equi_table)
-        # generalization_error = zeros(num_test)
-        # ground_truth_loss = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false,[],[],1:g.h-1, 1:nx, 1:nu)
-        # for kk in 1:num_test
-        #     generalization_error[kk], _,_,_ = loss(θ_list[1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], false, false, [],[],1:g.h-1, 1:nx, 1:nu)
-        # end
         push!(conv_table_list[ii][jj], conv_table)
         push!(x0_table_list[ii][jj], x0_table)
         push!(init_x0_list[ii][jj], init_x0)
@@ -194,6 +194,7 @@ for ii in 1:num_clean_traj
 end
 
 
+
 list_ground_truth_loss = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
 list_generalization_loss = [[[] for jj in 1:num_noise_level] for ii in 1:num_clean_traj]
 for ii in 1:num_clean_traj
@@ -202,18 +203,21 @@ for ii in 1:num_clean_traj
         tmp_generalization_loss = zeros(num_obs)
         for kk in 1:num_obs
             tmp = zeros(num_test)
-            tmp_ground_truth_loss[kk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false, [],[],1:g.h-1, 1:9, 1:nu) # obs_state_list does not include [13]
+            tmp_ground_truth_loss[kk] = new_loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", expert_traj_list[ii], true,false, [],[],1:g.h-1, 1:12, 1:nu, true, false, [], g, solver2, 13)
             for kkk in 1:num_test
-                tmp[kkk] = loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kkk], true, false,[],[],1:g.h-1, 1:9, 1:nu)
+                tmp[kkk] = new_loss(θ_list_list[ii][jj][1][kk], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kkk], true, false,[],[],1:g.h-1, 1:12, 1:nu, true, false, [], g, solver2, 13)
             end
             tmp_generalization_loss[kk] = mean(tmp)
             println("Current iteration: $(jj), $(kk)")
+
         end
         # for kk in 1:num_test
         #     tmp_generalization_loss[kk] = loss(θ_list_list[ii][jj][1][1], iLQGames.dynamics(g), "FBNE_costate", test_expert_traj_list[kk], true, false,[],[],1:g.h-1, 1:nx, 1:nu)
         # end
         push!(list_ground_truth_loss[ii][jj], tmp_ground_truth_loss)
         push!(list_generalization_loss[ii][jj], tmp_generalization_loss)
+        println(tmp_ground_truth_loss)
+        println(tmp_generalization_loss)
     end
 end
 
@@ -250,18 +254,25 @@ jldsave("1008_baobei_GD_2car_partial_x0$(Dates.now())"; noise_level_list, nx, nu
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
     list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
 
-
-jldsave("1023_baobei_GD_2car_full_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+jldsave("1014_baobei_GD_3car_full_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
     list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
 
-jldsave("1023_baobei_GD_2car_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+
+jldsave("Indy_baobei_GD_3car_full_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
     list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
+
+jldsave("Indy_baobei_GD_3car_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+    c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
+    equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
+    # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
+    list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
+
 
 
 # ii -> nominal traj, jj -> noise level, index -> information pattern
@@ -482,7 +493,7 @@ tmp16 = [mean(list_generalization_loss[1][jj][1]) for jj in 1:num_noise_level]
 tmp14_var = [var(optim_loss_list_list[1][ii][1]) for ii in 1:num_noise_level]
 tmp15_var = [var(list_ground_truth_loss[1][jj][1]) for jj in 1:num_noise_level]
 tmp16_var = [var(list_generalization_loss[1][jj][1]) for jj in 1:num_noise_level]
-plot(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var), color="red", label="Inverse FBNE, distance to noisy observation data")
+plot!(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var), color="red", label="Inverse FBNE, distance to noisy observation data")
 plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var), color="blue", label = "Inverse FBNE, distance to ground truth data")
 plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var), color="orange", label="Inverse FBNE, generalization loss")
 
@@ -490,7 +501,10 @@ savefig("10_8_all.pdf")
 
 
 
-
+plot(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var), color="red", label="Inverse FBNE, distance to noisy observation data")
+plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var), color="blue", label = "Inverse FBNE, distance to ground truth data")
+plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var), color="orange", label="Inverse FBNE, generalization loss")
+plot!(ylims=(0,10))
 
 
 ttt = load("inv_dubins_0.1_server")
@@ -635,6 +649,31 @@ savefig("latest_partial_x0.pdf")
 savefig("latest_full_x0.pdf")
 
 
+
+# ------------------------------------ Oct. 18
+t1=load("Indi_var_KKT_clean_3cars_full2022-10-18T05:52:43.663")
+t2=load("Indy_baobei_GD_3car_full_x02022-10-18T05:36:39.382")
+noise_level_list=0.004:0.008:0.04
+num_noise_level = length(noise_level_list)
+tmp1 = [mean(t1["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp2 = [mean(t1["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp3 = [mean(t1["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp1_var = [var(t1["inv_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp2_var = [var(t1["inv_ground_truth_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp3_var = [var(t1["inv_mean_generalization_loss_list"][ii])[1] for ii in 1:num_noise_level]
+tmp14, tmp15, tmp16, tmp14_var, tmp15_var, tmp16_var = t2["tmp14"], t2["tmp15"], t2["tmp16"], t2["tmp14_var"], t2["tmp15_var"], t2["tmp16_var"]
+
+plt=plot()
+plt=plot(noise_level_list, tmp1, ribbons=(tmp1_var, tmp1_var),alpha=1, line=:dash,linewidth=3, color="red", label = "inverse KKT OLNE, L2 regularized loss", xlabel="noise variance", size = (700,500),legend = :topright,ylims=(0,5))
+plt=plot!(noise_level_list, tmp2,ribbons=(tmp2_var, tmp2_var),alpha=1,line=:dash,linewidth=3, color="blue", label = "inverse KKT OLNE, distance to ground truth data")
+plt=plot!(noise_level_list, tmp3,ribbons=(tmp3_var, tmp3_var),alpha=1,line=:dash,linewidth=3, color="orange", label = "inverse KKT OLNE, generalization loss")
+plt=plot!(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var),alpha=1, color="red",linewidth=3, label="Inverse FBNE, L2 regularized loss")
+plt=plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var),alpha=1, color="blue",linewidth=3, label = "Inverse FBNE, distance to ground truth data")
+plt=plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var),alpha=1, color="orange",linewidth=3, label="Inverse FBNE, generalization loss")
+plt=plot!(ylim=(0,8), size=(400,400))
+
+savefig("Indy_partial_x0.pdf")
+savefig("Infy_full_x0.pdf")
 
 
 

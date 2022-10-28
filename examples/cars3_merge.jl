@@ -36,7 +36,7 @@ dynamics = ThreeCar()
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
 #     )
 # x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
-x0 = SVector(0.4, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
+x0 = SVector(0.0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2  +x[17]*x[5]^2  +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -151,6 +151,8 @@ obs_control_list = 1:nu
 # obs_state_list = 1:nx
 
 # obs_time_list = 1:game_horizon-1
+
+regularization_size=1e-4
 random_init_x0=false
 if obs_state_list != 1:nx
     random_init_x0 = true
@@ -273,13 +275,13 @@ jldsave("Indy_baobei_GD_3car_partial_x0$(Dates.now())"; noise_level_list, nx, nu
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
     list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
 
-jldsave("GD_Indy_baobei_GD_3car_full_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+jldsave("Walnut_Creek_Indy_baobei_GD_3car_full_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
     list_generalization_loss, list_ground_truth_loss, tmp14,tmp14_var,tmp15,tmp15_var, tmp16, tmp16_var)
 
-jldsave("GD_Indy_baobei_GD_3car_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
+jldsave("Walnut_Creek_Indy_baobei_GD_3car_partial_x0$(Dates.now())"; noise_level_list, nx, nu, ΔT, g, dynamics, costs, player_inputs, solver1, solver2, x0, parameterized_cost, GD_iter_num, num_clean_traj, θ_true, θ₀, 
     c_expert, expert_traj_list, conv_table_list, sol_table_list, loss_table_list, grad_table_list, noisy_expert_traj_list,x0_set, test_x0_set,test_expert_traj_list,
     equi_table_list, iter_table_list, comp_time_table_list, θ_list_list, index_list_list, optim_loss_list_list, ground_truth_loss_list, generalization_error_list,
     # mean_prediction_loss, var_prediction_loss, mean_gen_loss, var_gen_loss, 
@@ -689,7 +691,11 @@ savefig("Infy_full_x0.pdf")
 
 
 # -------------------------------------- Oct. 22
-
+# 2-car
+t1=load("1012_baobei_GD_2car_full_x02022-10-14T23:19:41.847")
+t2=load("")
+t3=load("")
+t4=load("KKT_partial_2cars_x0_baobei")
 
 
 

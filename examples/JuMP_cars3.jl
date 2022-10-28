@@ -140,7 +140,7 @@ obs_control_list=[]
 # obs_time_list = 1:game_horizon-1
 # obs_state_list = 1:nx
 # obs_control_list = 1:nu
-for index_value in 1:6
+for index_value in 1:num_obs
     for noise in 1:length(noise_level_list)
         for ii in 1:num_obs
             # solved_KKT=false
