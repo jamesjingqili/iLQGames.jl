@@ -6,6 +6,7 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
                 nominal_solver=[], nominal_traj=[], obs_time_list = 1:game_horizon-1, 
                 obs_state_list = 1:nx, obs_control_list = 1:nu, no_control=false, x0_mode=false, x0=[],    static_game=[],static_solver=[], true_game_nx=12+1) 
     # last three items new
+    n_θ=5
     if x0_mode==false
         x0 = first(expert_traj.x)
     end
@@ -16,40 +17,40 @@ function new_loss(θ, dynamics, equilibrium_type, expert_traj, gradient_mode = t
         ctrl_coeff = 1
     end
     if gradient_mode == false
-        nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]))
+        nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+n_θ}([x0[1:true_game_nx]; SVector{n_θ}(θ)]))
         tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(nominal_traj.x[t][obs_state_list]) for t in obs_time_list])))    
-        loss_value = norm(tmp2 - tmp1)^2 + regularization_size*sum(x0[end-3:end].*x0[end-3:end])
+        loss_value = norm(tmp2 - tmp1)^2 + regularization_size*sum(x0[end-(n_θ-1):end].*x0[end-(n_θ-1):end])
         return loss_value, nominal_traj, nominal_strategies, static_solver
     else
         if x0_mode==true
             if specified_solver_and_traj == false
-                nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([SVector{true_game_nx}(ForwardDiff.value.(x0[1:true_game_nx]));  SVector{4}(ForwardDiff.value.(θ))])  )
+                nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+n_θ}([SVector{true_game_nx}(ForwardDiff.value.(x0[1:true_game_nx]));  SVector{n_θ}(ForwardDiff.value.(θ))])  )
             end
             lqg = Differentiable_Solvers.lq_approximation(static_game, nominal_traj, static_solver)
             if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+n_θ}([x0[1:true_game_nx]; SVector{n_θ}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
             elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+n_θ}([x0[1:true_game_nx]; SVector{n_θ}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
             else
                 @warn "equilibrium_type is wrong!"
             end
             tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(traj.x[t][obs_state_list]) for t in obs_time_list])))
-            loss_value = norm(tmp1-tmp2)^2 + regularization_size*sum(x0[end-3:end].*x0[end-3:end])
+            loss_value = norm(tmp1-tmp2)^2 + regularization_size*sum(x0[end-(n_θ-1):end].*x0[end-(n_θ-1):end])
             return loss_value
         else
             if specified_solver_and_traj == false
-                nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+4}([SVector{true_game_nx}(ForwardDiff.value.(x0[1:true_game_nx]));  SVector{4}(ForwardDiff.value.(θ))]))
+                nominal_converged, nominal_traj, nominal_strategies = solve(static_game, static_solver, SVector{true_game_nx+n_θ}([SVector{true_game_nx}(ForwardDiff.value.(x0[1:true_game_nx]));  SVector{n_θ}(ForwardDiff.value.(θ))]))
             end
             lqg = Differentiable_Solvers.lq_approximation(static_game, nominal_traj, static_solver)
             if equilibrium_type=="OLNE_KKT" || equilibrium_type=="OLNE_costate" || equilibrium_type=="OLNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+n_θ}([x0[1:true_game_nx]; SVector{n_θ}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_OLNE(lqg), nominal_traj)
             elseif equilibrium_type=="FBNE_KKT" || equilibrium_type=="FBNE_costate" || equilibrium_type=="FBNE"
-                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+4}([x0[1:true_game_nx]; SVector{4}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
+                traj = Differentiable_Solvers.trajectory(SVector{true_game_nx+n_θ}([x0[1:true_game_nx]; SVector{n_θ}(θ)]), static_game, Differentiable_Solvers.solve_lq_game_FBNE(lqg), nominal_traj)
             else
                 @warn "equilibrium_type is wrong!"
             end
             tmp2 = transpose(mapreduce(permutedims, vcat, Vector([Vector(traj.x[t][obs_state_list]) for t in obs_time_list])))
-            loss_value = norm(tmp1-tmp2)^2 + regularization_size*sum(x0[end-3:end].*x0[end-3:end])
+            loss_value = norm(tmp1-tmp2)^2 + regularization_size*sum(x0[end-(n_θ-1):end].*x0[end-(n_θ-1):end])
             return loss_value
         end
     end
