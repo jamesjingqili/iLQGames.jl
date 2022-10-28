@@ -55,7 +55,7 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
     @variable(model, x[1:nx, 1:g.h+1])
     @variable(model, u[1:nu, 1:g.h])
     @variable(model, λ[1:3, 1:nx, 1:g.h])
-    @variable(model, θ[1:4])
+    @variable(model, θ[1:5]) #-
     set_start_value.(θ, θ₀)
     set_start_value.(x, x_init)
     set_start_value.(u, u_init)
@@ -132,7 +132,8 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
             @constraint(model,   λ[3,6,t]               - λ[3,6,t+1] == 0)
             @NLconstraint(model, λ[3,7,t]               - λ[3,7,t+1] + λ[3,5,t+1]*ΔT*x[8,t]*sin(x[7,t]) - λ[3,6,t+1]*ΔT*x[8,t]*cos(x[7,t]) == 0)
             @NLconstraint(model, λ[3,8,t]               - λ[3,8,t+1] - λ[3,5,t+1]*ΔT*cos(x[7,t]) - λ[3,6,t+1]*ΔT*sin(x[7,t]) == 0)
-            @constraint(model,   λ[3,9,t] +4*(x[9,t]-x0[9])              - λ[3,9,t+1] == 0)
+            # @constraint(model,   λ[3,9,t] +4*(x[9,t]-x0[9])              - λ[3,9,t+1] == 0)
+            @constraint(model,   λ[3,9,t] +2*θ[5]*(x[9,t]-x0[9])              - λ[3,9,t+1] == 0) #-
             @constraint(model,   λ[3,10,t]              - λ[3,10,t+1] == 0)
             @NLconstraint(model, λ[3,11,t]              - λ[3,11,t+1] + λ[3,9,t+1]*ΔT*x[12,t]*sin(x[11,t]) - λ[3,10,t+1]*ΔT*x[12,t]*cos(x[11,t]) == 0)
             @NLconstraint(model, λ[3,12,t]              - λ[3,12,t+1] - λ[3,9,t+1]*ΔT*cos(x[11,t]) - λ[3,10,t+1]*ΔT*sin(x[11,t]) == 0)
@@ -146,7 +147,8 @@ function level_2_KKT_x0(x_init, u_init, obs_x, θ₀, obs_time_list, obs_state_i
             @constraint(model,   λ[3,6,t] == 0)
             @NLconstraint(model, λ[3,7,t] == 0)
             @NLconstraint(model, λ[3,8,t] == 0)
-            @constraint(model,   λ[3,9,t] +4*(x[9,t]-x0[9])== 0)
+            # @constraint(model,   λ[3,9,t] +4*(x[9,t]-x0[9])== 0)
+            @constraint(model,   λ[3,9,t] +2*θ[5]*(x[9,t]-x0[9])== 0) #-
             @constraint(model,   λ[3,10,t] == 0)
             @NLconstraint(model, λ[3,11,t] == 0)
             @NLconstraint(model, λ[3,12,t] == 0)

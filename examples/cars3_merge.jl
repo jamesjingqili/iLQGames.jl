@@ -20,12 +20,13 @@ include("../src/inverse_game_solver.jl")
 include("../src/experiment_utils.jl") # NOTICE!! Many functions are defined there.
 
 num_players=3
-nx, nu, ΔT, game_horizon = 4*num_players+1+4, 2*num_players, 0.1, 30
+# nx=18
+nx, nu, ΔT, game_horizon = 4*num_players+1+5, 2*num_players, 0.1, 30
 struct ThreeCar <: ControlSystem{ΔT,nx,nu} end
 dx(cs::ThreeCar, x, u, t) = SVector(x[4]cos(x[3]),   x[4]sin(x[3]),   u[1], u[2], 
                                         x[8]cos(x[7]),   x[8]sin(x[7]),   u[3], u[4],
                                         x[12]cos(x[11]), x[12]sin(x[11]), u[5], u[6],
-                                        0,0,0,0,0
+                                        0,0,0,0,0,0
                                         )
 dynamics = ThreeCar()
 # platonning
@@ -36,10 +37,10 @@ dynamics = ThreeCar()
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
 #     )
 # x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
-x0 = SVector(0.0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
+x0 = SVector(0.0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0, 2)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2  +x[17]*x[5]^2  +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
+         FunctionPlayerCost((g,x,u,t) -> ( x[18]*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
     )
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
@@ -63,14 +64,14 @@ c2, expert_traj2, strategies2 = solve(g, solver2, x0)
 function parameterized_cost(θ::Vector)
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*(x[1])^2  + x[15]*(x[5]-x[13])^2  + 4*(x[3]-pi/2)^2   +8*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5])^2  + x[17]*(x[5]-x[1])^2     +  8*(x[8]-2)^2  +4*(x[7]-pi/2)^2     -log((x[5]-x[9])^2+(x[6]-x[10])^2)  +2*(u[3]^2+u[4]^2)    )),
-         FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
+         FunctionPlayerCost((g,x,u,t) -> ( x[18]*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
     )
     return costs
 end
-θ_true = [0, 8, 8, 0]
+θ_true = [0, 8, 8, 0,2]
 
 
-tmp = new_loss([1,1,1,1], dynamics, "FBNE_costate", expert_traj2, false, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, [], static_game, static_solver, true_game_nx)
+# tmp = new_loss([1,1,1,1,1], dynamics, "FBNE_costate", expert_traj2, false, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, [], static_game, static_solver, true_game_nx)
 
 
 include("new_experiment_utils.jl")
@@ -78,10 +79,10 @@ static_game = g
 static_solver = solver2
 true_game_nx = 13
 ForwardDiff.gradient(x -> new_loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, [], 
-                    static_game, static_solver, true_game_nx), [1,1,1,1])
+                    static_game, static_solver, true_game_nx), [1,1,1,1,1])
 
-ForwardDiff.gradient(x -> new_loss([1,1,1,1], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x, static_game, 
-                    static_solver,  true_game_nx), [0.5, 3, pi/2, 2,       0.5, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10  ])
+ForwardDiff.gradient(x -> new_loss([1,1,1,1,1], dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, true, x, static_game, 
+                    static_solver,  true_game_nx), [0.5, 3, pi/2, 2,       0.5, 0, pi/2, 1.5,      0.5, 2,pi/2,1,                   1,     0, 10, 0, 10,2  ])
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"
@@ -132,11 +133,11 @@ generalization_error_list = deepcopy(conv_table_list);
 ground_truth_loss_list = deepcopy(conv_table_list);
 init_x0_list = deepcopy(conv_table_list);
 
-θ₀ = 4*ones(4);
+θ₀ = 4*ones(5);
 
 num_test=6
 test_noise_level=1.0
-test_x0_set = [x0 - [zeros(12);x0[13];zeros(4)] + test_noise_level*[zeros(12);rand(1)[1];zeros(4)] for ii in 1:num_test];
+test_x0_set = [x0 - [zeros(12);x0[13];zeros(5)] + test_noise_level*[zeros(12);rand(1)[1];zeros(5)] for ii in 1:num_test];
 
 test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_set, num_test);
 
@@ -167,7 +168,7 @@ for ii in 1:num_clean_traj
         if random_init_x0 == true
             init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]-[0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][4],
                         0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][8],
-                        0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][12],0,0,0,0,0] + (0.8*ones(nx)+0.4*rand(nx)).*[0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0]  for kk in 1:tmp_num_obs]
+                        0,0,0,noisy_expert_traj_list[ii][jj][kk].x[1][12],0,0,0,0,0,0] + (0.8*ones(nx)+0.4*rand(nx)).*[0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0]  for kk in 1:tmp_num_obs]
         else
             init_x0 = [noisy_expert_traj_list[ii][jj][kk].x[1]  for kk in 1:tmp_num_obs]
         end
