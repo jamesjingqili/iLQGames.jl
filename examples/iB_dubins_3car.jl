@@ -26,7 +26,7 @@ nx, nu, ΔT, game_horizon = 12, 6, 0.1, 40
 # setup the dynamics
 struct ThreeCars <: ControlSystem{ΔT,nx,nu} end
 # state: (px, py, phi, v)
-dx(cs::DoubleUnicycle, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
+dx(cs::ThreeCars, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
                                     x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4],
                                     x[12]cos(x[11]) , x[12]sin(x[11]), u[5], u[6])
 dynamics = ThreeCars()
@@ -59,24 +59,24 @@ end
 # θ_true = [10, 1, 1, 4, 1]
 θ_true = [8, 0, 4, 4]
 
-# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
-# x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
-# anim2 = @animate for i in 1:game_horizon
-#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "")
-# end
-# gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
-# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-# x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
-# anim1 = @animate for i in 1:game_horizon
-#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "") 
-# end
-# gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
+x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+anim2 = @animate for i in 1:game_horizon
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "")
+end
+gif(anim2, "lane_guiding_3cars_FB_moving.gif", fps = 10)
+x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+anim1 = @animate for i in 1:game_horizon
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "") 
+end
+gif(anim1, "lane_guiding_3cars_OL_moving.gif", fps = 10)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"

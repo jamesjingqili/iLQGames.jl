@@ -270,3 +270,48 @@ fullplt=plot(plt1, plt2, layout=(1,2), size = (1000,400),left_margin=5Plots.mm,b
 display(fullplt)
 savefig("cars3_comparison_log.pdf")
 
+
+
+
+
+# ---------------------------- last minute
+t1=load("Berkeley_var_KKT_clean_3cars_partial")
+t2=load("Berkeley_var_KKT_clean_3cars_full")
+t3=load("Berkeley_baobei_GD_3car_partial")
+t4=load("Berkeley_baobei_GD_3car_full")
+noise_level_list = t1["noise_level_list"]
+num_noise_level = length(noise_level_list)
+# partial
+fillalpha=0.5
+tmp3, tmp1, tmp2, tmp3_var,tmp1_var,tmp2_var = t1["mean1"], t1["mean2"], t1["mean3"], t1["var1"], t1["var2"], t1["var3"]
+tmp14, tmp15, tmp16, tmp14_var, tmp15_var, tmp16_var = t3["tmp14"], t3["tmp15"], t3["tmp16"], t3["tmp14_var"], t3["tmp15_var"], t3["tmp16_var"]
+num_obs=length(t1["inv_sol_list"][1])
+plt1=plot()
+plt1=plot!(noise_level_list, tmp1, ribbons=(tmp1_var, tmp1_var),alpha=1,fillalpha=fillalpha, line=:dash,linewidth=3, color="red", label = "", xlabel="noise variance",title="Partial obs. and incomplete traj.")
+plt1=plot!(noise_level_list, tmp2,ribbons=(tmp2_var, tmp2_var),alpha=1,fillalpha=fillalpha,line=:dash,linewidth=3, color="blue", label = "")
+plt1=plot!(noise_level_list, tmp3,ribbons=(tmp3_var, tmp3_var),alpha=1,fillalpha=fillalpha,line=:dash,linewidth=3, color="orange", label = "")
+plt1=plot!(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var),alpha=1,fillalpha=fillalpha, color="red",linewidth=3, label="")
+plt1=plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var),alpha=1,fillalpha=fillalpha, color="blue",linewidth=3, label = "")
+plt1=plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var),alpha=1,fillalpha=fillalpha, color="orange",linewidth=3, label="", ylabel = "distance in log scale",ylims=(-6,8))
+num_obs=length(t2["inv_sol_list"][1])
+tmp3, tmp1, tmp2, tmp3_var,tmp1_var,tmp2_var = t2["mean1"], t2["mean2"], t2["mean3"], t2["var1"], t2["var2"], t2["var3"]
+tmp14, tmp15, tmp16, tmp14_var, tmp15_var, tmp16_var = t4["tmp14"], t4["tmp15"], t4["tmp16"], t4["tmp14_var"], t4["tmp15_var"], t4["tmp16_var"]
+
+plt2=plot()
+plt2=plot!(noise_level_list, tmp1, ribbons=(tmp1_var, tmp1_var),alpha=1,fillalpha=fillalpha, line=:dash,linewidth=3, color="red", label = "Baseline, to noisy observation data", xlabel="noise variance",legend = :topright,title="Full obs. and complete traj.")
+plt2=plot!(noise_level_list, tmp2,ribbons=(tmp2_var, tmp2_var),alpha=1,fillalpha=fillalpha,line=:dash,linewidth=3, color="blue", label = "Baseline, to ground truth data")
+plt2=plot!(noise_level_list, tmp3,ribbons=(tmp3_var, tmp3_var),alpha=1,fillalpha=fillalpha,line=:dash,linewidth=3, color="orange", label = "Baseline, to expert trajectory from unseen initial state")
+plt2=plot!(noise_level_list, tmp14,ribbons=(tmp14_var, tmp14_var),alpha=1,fillalpha=fillalpha, color="red",linewidth=3, label="Algorithm 1, to noisy observation data")
+plt2=plot!(noise_level_list, tmp15,ribbons=(tmp15_var, tmp15_var),alpha=1,fillalpha=fillalpha, color="blue",linewidth=3, label = "Algorithm 1, to ground truth data")
+plt2=plot!(noise_level_list, tmp16,ribbons=(tmp16_var, tmp16_var),alpha=1,fillalpha=fillalpha, color="orange",linewidth=3, label="Algorithm 1, to expert trajectory from unseen initial state", ylabel="distance in log scale", ylims=(-6,8))
+
+fullplt=plot(plt1, plt2, layout=(1,2), size = (1000,400),left_margin=5Plots.mm,bottom_margin=5Plots.mm)
+display(fullplt)
+
+savefig("cars3_comparison_log.pdf")
+
+
+
+
+
+

@@ -37,7 +37,9 @@ dynamics = ThreeCar()
 #          FunctionPlayerCost((g,x,u,t) -> ( 2*(x[9]-x0[9])^2   +2*(u[5]^2+u[6]^2)  ))
 #     )
 # x0 = SVector(0.0, 1, pi/2, 2,       1, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0)
-x0 = SVector(0.0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0, 2)
+# x0 = SVector(0.0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2, 0, 8, 8, 0, 2) # final draft
+x0 = SVector(0.2, 2, pi/2, 2,       1.0, 0, pi/2, 2,   0.5, 0,pi/2,2,                   0.5, 0, 8, 8, 0, 2) # test
+
 costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*x[1]^2 + x[15]*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[16]*(x[5]-x[1])^2  +x[17]*x[5]^2  +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( x[18]*(x[9]-x0[9])^2   + 2*(u[5]^2+u[6]^2)  ))
@@ -69,6 +71,35 @@ costs = (FunctionPlayerCost((g,x,u,t) -> ( x[14]*(x[1])^2  + x[15]*(x[5]-x[13])^
     return costs
 end
 θ_true = [0, 8, 8, 0,2]
+
+
+
+
+x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+x3_FB, y3_FB = [expert_traj2.x[i][9] for i in 1:game_horizon], [expert_traj2.x[i][10] for i in 1:game_horizon];
+anim2 = @animate for i in 1:game_horizon
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
+    plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "",size=(300,600),xlabel="p_x",ylabel="p_y", title="FBNE")
+    plot!([x0[13]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
+end
+gif(anim2, "lane_guiding_3cars_FB_moving.gif", fps = 8)
+x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+x3_OL, y3_OL = [expert_traj1.x[i][9] for i in 1:game_horizon], [expert_traj1.x[i][10] for i in 1:game_horizon];
+anim1 = @animate for i in 1:game_horizon
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+    plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", xlims = (-0.5, 1.5), ylims = (0, 8))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "",size=(300,600),xlabel="p_x",ylabel="p_y", title="OLNE")
+    plot!([x0[13]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
+end
+gif(anim1, "lane_guiding_3cars_OL_moving.gif", fps = 8)
+
 
 
 # tmp = new_loss([1,1,1,1,1], dynamics, "FBNE_costate", expert_traj2, false, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, [], static_game, static_solver, true_game_nx)
@@ -149,7 +180,7 @@ test_expert_traj_list, c_test_expert = generate_expert_traj(g, solver2, test_x0_
 obs_time_list = [1:10; 21:g.h-1]
 obs_state_list = [1,2,3,5,6,7, 9,10,11,13]
 obs_control_list = 1:nu
-# obs_state_list = 1:nx
+# obs_state_list = 1:13
 
 # obs_time_list = 1:game_horizon-1
 

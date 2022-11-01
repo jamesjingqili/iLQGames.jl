@@ -42,7 +42,7 @@ g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,0)
+x0 = SVector(0.3, 0.5, pi/2, 1,       0.9, 0, pi/2, 1,0.5)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
 
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
@@ -61,24 +61,26 @@ end
 # ForwardDiff.gradient(x -> loss(x, dynamics, "FBNE_costate", expert_traj2, true, false, [], [], 1:game_horizon-1, 1:nx, 1:nu, false, false, []), [9,0,4,4])
 
 
-# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
-# x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
-# anim2 = @animate for i in 1:game_horizon
-#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "")
-# end
-# gif(anim2, "lane_guiding_FB_moving.gif", fps = 10)
-# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-# x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
-# anim1 = @animate for i in 1:game_horizon
-#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
-#     plot!([0], seriestype = "vline", color = "black", label = "")
-#     plot!([1], seriestype = "vline", color = "black", label = "") 
-# end
-# gif(anim1, "lane_guiding_OL_moving.gif", fps = 10)
+x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+anim2 = @animate for i in 1:game_horizon
+    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 6))    
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "",xlabel="p_x",ylabel="p_y",title="FBNE",size=(300,600))
+    plot!([x0[9]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
+end
+gif(anim2, "lane_guiding_2cars_FB_moving.gif", fps = 10)
+x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+anim1 = @animate for i in 1:game_horizon
+    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 6))
+    plot!([0], seriestype = "vline", color = "black", label = "")
+    plot!([1], seriestype = "vline", color = "black", label = "",xlabel="p_x",ylabel="p_y",title="OLNE",size=(300,600)) 
+    plot!([x0[9]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
+end
+gif(anim1, "lane_guiding_2cars_OL_moving.gif", fps = 10)
 
 # ------------------------------------------------------------------------------------------------------------------------------------------
 "Experiment 2: With noise. Scatter plot"
