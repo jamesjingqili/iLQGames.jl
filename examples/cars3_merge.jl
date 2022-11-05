@@ -75,30 +75,30 @@ end
 
 
 
-x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
-x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
-x3_FB, y3_FB = [expert_traj2.x[i][9] for i in 1:game_horizon], [expert_traj2.x[i][10] for i in 1:game_horizon];
-anim2 = @animate for i in 1:game_horizon
-    plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 8))
-    plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
-    plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "",size=(300,600),xlabel="p_x",ylabel="p_y", title="FBNE")
-    plot!([x0[13]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
-end
-gif(anim2, "lane_guiding_3cars_FB_moving.gif", fps = 8)
-x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
-x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
-x3_OL, y3_OL = [expert_traj1.x[i][9] for i in 1:game_horizon], [expert_traj1.x[i][10] for i in 1:game_horizon];
-anim1 = @animate for i in 1:game_horizon
-    plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
-    plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
-    plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", xlims = (-0.5, 1.5), ylims = (0, 8))    
-    plot!([0], seriestype = "vline", color = "black", label = "")
-    plot!([1], seriestype = "vline", color = "black", label = "",size=(300,600),xlabel="p_x",ylabel="p_y", title="OLNE")
-    plot!([x0[13]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
-end
-gif(anim1, "lane_guiding_3cars_OL_moving.gif", fps = 8)
+# x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
+# x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];
+# x3_FB, y3_FB = [expert_traj2.x[i][9] for i in 1:game_horizon], [expert_traj2.x[i][10] for i in 1:game_horizon];
+# anim2 = @animate for i in 1:game_horizon
+#     plot([x1_FB[i], x1_FB[i]], [y1_FB[i], y1_FB[i]], markershape = :square, label = "player 1, FB", xlims = (-0.5, 1.5), ylims = (0, 8))
+#     plot!([x2_FB[i], x2_FB[i]], [y2_FB[i], y2_FB[i]], markershape = :square, label = "player 2, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
+#     plot!([x3_FB[i], x3_FB[i]], [y3_FB[i], y3_FB[i]], markershape = :square, label = "player 3, FB", xlims = (-0.5, 1.5), ylims = (0, 8))    
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "",size=(300,600),xlabel="p_x",ylabel="p_y", title="FBNE")
+#     plot!([x0[13]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
+# end
+# gif(anim2, "lane_guiding_3cars_FB_moving.gif", fps = 8)
+# x1_OL, y1_OL = [expert_traj1.x[i][1] for i in 1:game_horizon], [expert_traj1.x[i][2] for i in 1:game_horizon];
+# x2_OL, y2_OL = [expert_traj1.x[i][5] for i in 1:game_horizon], [expert_traj1.x[i][6] for i in 1:game_horizon];
+# x3_OL, y3_OL = [expert_traj1.x[i][9] for i in 1:game_horizon], [expert_traj1.x[i][10] for i in 1:game_horizon];
+# anim1 = @animate for i in 1:game_horizon
+#     plot([x1_OL[i], x1_OL[i]], [y1_OL[i], y1_OL[i]], markershape = :square, label = "player 1, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+#     plot!([x2_OL[i], x2_OL[i]], [y2_OL[i], y2_OL[i]], markershape = :square, label = "player 2, OL", xlims = (-0.5, 1.5), ylims = (0, 8))
+#     plot!([x3_OL[i], x3_OL[i]], [y3_OL[i], y3_OL[i]], markershape = :square, label = "player 3, OL", xlims = (-0.5, 1.5), ylims = (0, 8))    
+#     plot!([0], seriestype = "vline", color = "black", label = "")
+#     plot!([1], seriestype = "vline", color = "black", label = "",size=(300,600),xlabel="p_x",ylabel="p_y", title="OLNE")
+#     plot!([x0[13]], seriestype="vline",linestyle=:dash, color="black", label="target lane")
+# end
+# gif(anim1, "lane_guiding_3cars_OL_moving.gif", fps = 8)
 
 
 
