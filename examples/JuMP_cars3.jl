@@ -33,7 +33,7 @@ dynamics = ThreeCar()
 # x0 = SVector(0.0, 3, pi/2, 2,       0.3, 0, pi/2, 2,      0.7, 2,pi/2,1,                   0.2)
 # platonning
 # x0 = SVector(0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2)
-x0 = SVector(0.0, 1, pi/2, 2,       0.3, 0, pi/2, 2,   0.5, 0.5,pi/2,2,                   0.2)
+x0 = SVector(0.2, 2, pi/2, 2,       1.0, 0, pi/2, 2,   0.5, 0,pi/2,2,                   0.5)
 
 costs = (FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[13])^2   +4*(x[3]-pi/2)^2  +2*(x[4]-2)^2       +2*(u[1]^2 + u[2]^2)    )),
          FunctionPlayerCost((g,x,u,t) -> ( 8*(x[5]-x[1])^2    +4*(x[7]-pi/2)^2  +2*(x[8]-2)^2       -log((x[5]-x[9])^2+(x[6]-x[10])^2)    +2*(u[3]^2+u[4]^2)    )),
@@ -121,6 +121,7 @@ for ii in 1:num_clean_traj
 end
 
 θ₀ = [4,4,4,4,4];
+regularization_size=1e-4
 inv_traj_x_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_traj_u_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
 inv_sol_list = [[[] for jj in 1:num_obs] for ii in 1:length(noise_level_list)];
@@ -142,7 +143,7 @@ obs_control_list=[]
 # obs_time_list = 1:game_horizon-1
 # obs_state_list = 1:nx
 # obs_control_list = 1:nu
-for index_value in 1:num_obs
+for index_value in 1:1
     for noise in 1:length(noise_level_list)
         for ii in 1:num_obs
             # solved_KKT=false
@@ -275,6 +276,26 @@ var3=[var(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii i
 plot(noise_level_list, [mean(inv_mean_generalization_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="generalization error")
 plot!(noise_level_list, [mean(inv_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label = "loss")
 plot!(noise_level_list, [mean(inv_ground_truth_loss_list[ii][jj][1] for jj in 1:num_obs)[1] for ii in 1:num_noise_level], label="ground truth")
+
+
+
+
+inv_mean_generalization_loss_list=t1["inv_mean_generalization_loss_list"]
+inv_loss_list = t1["inv_loss_list"]
+inv_ground_truth_loss_list = t1["inv_ground_truth_loss_list"]
+
+mean1 = [mean(log(inv_mean_generalization_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+mean2 = [mean(log(inv_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+mean3 = [mean(log(inv_ground_truth_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var1=[var(log(inv_mean_generalization_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var2=[var(log(inv_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var3=[var(log(inv_ground_truth_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+
+plot(noise_level_list, mean1,ribbons=(var1,var1), label="generalization error")
+plot!(noise_level_list, mean2,ribbons=(var2,var2), label = "loss")
+plot!(noise_level_list, mean3,ribbons=(var3,var3), label="ground truth")
+
+
 
 
 
