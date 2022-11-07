@@ -287,9 +287,9 @@ inv_ground_truth_loss_list = t1["inv_ground_truth_loss_list"]
 mean1 = [mean(log(inv_mean_generalization_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
 mean2 = [mean(log(inv_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
 mean3 = [mean(log(inv_ground_truth_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
-var1=[var(log(inv_mean_generalization_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
-var2=[var(log(inv_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
-var3=[var(log(inv_ground_truth_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var1=[1/sqrt(num_obs)*std(log(inv_mean_generalization_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var2=[1/sqrt(num_obs)*std(log(inv_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
+var3=[1/sqrt(num_obs)*std(log(inv_ground_truth_loss_list[ii][jj][1]) for jj in 1:num_obs)[1] for ii in 1:num_noise_level]
 
 plot(noise_level_list, mean1,ribbons=(var1,var1), label="generalization error")
 plot!(noise_level_list, mean2,ribbons=(var2,var2), label = "loss")
