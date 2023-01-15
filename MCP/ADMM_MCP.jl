@@ -14,6 +14,8 @@ Q3 = [3 0 1;
 q1 = -[10;5;10]
 q2 = -[20;20;10]
 q3 = -[10;5;20]
+mu=1
+
 
 function solve_MCP_problems(x,lam)
 	model = Model(PATHSolver.Optimizer)
@@ -39,11 +41,6 @@ function centralized_solver()
 	value.(w)
 	return value.(w), solution_summary(model)
 end
-# test centralized solver
-ww, ss = centralized_solver()
-
-# test MCP solver
-new_w, current_solution = solve_MCP_problems([1;1;1],[1,1,1])
 
 
 K = 20
@@ -51,6 +48,15 @@ w = ones(3,K)
 x = ones(3,K)
 lam = ones(3,K)
 mu=1
+
+
+# test centralized solver
+ww, ss = centralized_solver()
+
+# test MCP solver
+new_w, current_solution = solve_MCP_problems([1;1;1],[1,1,1])
+
+
 
 for k in 1:K-1
 	w[:,k+1],_ = solve_MCP_problems(x[:,k], lam[:,k])

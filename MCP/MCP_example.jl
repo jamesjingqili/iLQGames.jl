@@ -23,9 +23,33 @@ set_start_value(x[3], 0.)
 set_start_value(x[4], 0.5)
 
 status = solveMCP(m, solver=:NLsolve)
-@show status
 
 z = result_value.(x)
 
-@show z
+
+
+# ----------
+using JuMP, Ipopt, Complementarity
+m = Model(Ipopt.Optimizer)
+@variable(m, x>=0)
+@NLobjective(m, Min, x^3)
+@complements(m, 0 <= x+2,   x >= 0)
+@constraint(m, x>=-10)
+optimize!(m)
+
+
+
+using JuMP, Ipopt, Complementarity
+m = Model(Ipopt.Optimizer)
+@variable(m, x[1:2])
+@variable(m, lam[1:2] >= 0)
+@objective(m, Min, x'*[1 0; 0 1]*x + [1;1]'*x - lam'*(x-[2;2]))
+@complements(m, 0 <= x[1]-2, lam[1] >= 0)
+@complements(m, 0 <= x[2]-2, lam[2] >= 0)
+@constraint(m, x[1]==3)
+optimize!(m)
+
+
+# -------------
+
 
