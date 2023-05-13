@@ -13,7 +13,7 @@
     "Iteration is aborted if this number is exceeded."
     max_n_iter::Int = 200
     "The maximum number of backtrackings per scaling step"
-    max_scale_backtrack::Int = 20
+    max_scale_backtrack::Int = 4
     "The maximum elementwise difference bewteen operating points for
     convergence."
     max_elwise_diff_converged::Float64 = α_scale_init/10
@@ -186,6 +186,7 @@ function OL_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::Si
     return true, current_strategy, current_op, last_KKT_residual
 end
 
+include("Stackelberg_line_search.jl")
 function trajectory_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::SizedVector, last_strategy::SizedVector,
                                     current_op::SystemTrajectory, last_op::SystemTrajectory,
                                     cs::ControlSystem, solver::iLQSolver, g::GeneralGame, current_lqg_approx::LQGame, x0::SVector)
@@ -285,6 +286,12 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             λ=solve_lq_game_OLNE_with_costate!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "FBNE_costate"
             λ=solve_lq_game_FBNE_with_costate!(current_strategy, lqg_approx, x0)
+        elseif solver.equilibrium_type == "Stackelberg_KKT"
+            λ, η, ψ = solve_lq_game_Stackelberg_KKT!(current_strategy, lqg_approx, x0)
+            last_λ=copy(λ)
+            last_η = copy(η)
+            last_ψ = copy(ψ)
+                
         else
             @error "solver.equilibrium_type is wrong. Please check."
         end
@@ -302,14 +309,29 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             # @infiltrate
             success, current_strategy, current_op, last_KKT_residual = OL_KKT_line_search!(last_KKT_residual, λ, current_strategy, last_strategy, current_op, last_op,
                                         dynamics(g), solver, g, lqg_approx, x0)
-            # success = OL_KKT_line_search!(last_KKT_residual, λ, current_strategy, last_strategy, current_op, last_op,
-            #                             dynamics(g), solver, g, lqg_approx, x0)
-            # println("KKT value:",last_KKT_residual)
             # @infiltrate
             trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
-            last_λ=copy(λ)
+            last_λ = copy(λ)
             last_strategy = copy(current_strategy)
+        elseif solver.equilibrium_type=="Stackelberg_KKT"
+            if i_iter >= 1
+                # @infiltrate
+                success, current_strategy, current_op, last_KKT_residual = Stackelberg_KKT_line_search!(last_KKT_residual, λ, η, ψ, last_λ, last_η, last_ψ, 
+                current_strategy, last_strategy, current_op, last_op,
+                dynamics(g), solver, g, lqg_approx, x0)
+                # @infiltrate
+                trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
+                last_λ=copy(λ)
+                last_η = copy(η)
+                last_ψ = copy(ψ)
+                last_strategy = copy(current_strategy)
+            else
+                success = true
+                trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
+                last_strategy = copy(current_strategy)
+            end
         else
+            # success = true
             success = backtrack_scale!(current_strategy, current_op, last_op, dynamics(g), solver)# take the last_op and current_strategy to current_op. 
         end
         
@@ -323,7 +345,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # @infiltrate i_iter == solver.max_n_iter-1
         i_iter += 1
         converged = has_converged(solver, last_op, current_op)
-
+        println("Iteration ", i_iter, " finished.")
     end
 
     # NOTE: for `converged == false` the result may not be meaningful. `converged`
