@@ -5,7 +5,7 @@ using Plots
 using ForwardDiff
 
 # parametes: number of states, number of inputs, sampling time, horizon
-nx, nu, ΔT, game_horizon = 8, 4, 0.1, 50
+nx, nu, ΔT, game_horizon = 8, 4, 0.1, 30
 
 # setup the dynamics
 struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end
@@ -16,14 +16,14 @@ dynamics = DoubleUnicycle()
 
 # costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[1]-1)^2 + 0.1*(x[3]-pi/2)^2 + (x[4]-1)^2 + u[1]^2 + u[2]^2 - 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          # FunctionPlayerCost((g, x, u, t) -> ((x[5]-1)^2 + 0.1*(x[7]-pi/2)^2 + (x[8]-1)^2 + u[3]^2 + u[4]^2- 0.1*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[5]-1)^2  + u[1]^2 + u[2]^2 )),
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[5]-0.5)^2  + u[1]^2 + u[2]^2 )),
          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + u[3]^2 + u[4]^2 )))
 
 # indices of inputs that each player controls
 player_inputs = (SVector(1,2), SVector(3,4))
 # the horizon of the game
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1)
+x0 = SVector(0.5, 0.5, pi/2, 1,       1, 0, pi/2, 1)
 
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 

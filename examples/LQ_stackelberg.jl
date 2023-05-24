@@ -12,7 +12,7 @@ using LinearAlgebra
 include("diff_solver.jl")
 include("inverse_game_solver.jl")
 
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 10
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 5
 
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
