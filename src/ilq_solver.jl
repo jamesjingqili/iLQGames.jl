@@ -13,7 +13,7 @@ using Infiltrator
     "Iteration is aborted if this number is exceeded."
     max_n_iter::Int = 200 # 200
     "The maximum number of backtrackings per scaling step"
-    max_scale_backtrack::Int = 4
+    max_scale_backtrack::Int = 10
     "The maximum elementwise difference bewteen operating points for
     convergence."
     max_elwise_diff_converged::Float64 = α_scale_init/10

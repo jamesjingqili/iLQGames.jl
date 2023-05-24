@@ -172,6 +172,6 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
             ψ[(t-1)*m+1:t*m] =                          solution[ (t-1)*new_M_size+nu+nx*num_player+nu+1:(t-1)*new_M_size+nu+nx*num_player+nu+m ]
         end
     end
-    # @infiltrate
+    @infiltrate
     return λ, η, ψ
 end

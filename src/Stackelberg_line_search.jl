@@ -208,7 +208,7 @@ function Stackelberg_KKT_line_search!(last_KKT_residual, λ::Vector, η::Vector,
     end
     # println("Current α is ",α)
     # @warn "Line Search failed."
-    println("KKT residual is ",last_KKT_residual)
+    println("line search failed but KKT residual is ",last_KKT_residual)
     return true, current_strategy, current_op, last_KKT_residual
 end
 

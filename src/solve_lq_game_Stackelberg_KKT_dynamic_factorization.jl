@@ -161,6 +161,7 @@ function solve_lq_game_Stackelberg_KKT_dynamic_factorization!(strategies, g::LQG
             x = dynamics(g)[t].A*x - dynamics(g)[t].B*(strategies[t].P * x + strategies[t].α) # update x
         end
     end
-    
+    @infiltrate
+    # TODO: why the λ is twice of the matlab version? offset term is not consistent! 
     return λ, η, ψ
 end
