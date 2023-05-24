@@ -63,6 +63,7 @@ module iLQGames
     include("solve_lq_game_OLNE_with_costate.jl")
     include("solve_lq_game_FBNE_with_costate.jl")
     include("solve_lq_game_Stackelberg_KKT.jl")
+    include("solve_lq_game_Stackelberg_KKT_dynamic_factorization.jl")
     include("ilq_solver.jl")
 
     # simulation

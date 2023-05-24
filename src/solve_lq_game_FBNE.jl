@@ -32,7 +32,7 @@ function solve_lq_game_FBNE!(strategies, g::LQGame)
         # convenience shorthands for the relevant quantities
         A = dyn.A
         B = dyn.B
-
+        # @infiltrate
         # Compute Ps given previously computed Zs.
         # Refer to equation 6.17a in Basar and Olsder.
         # This will involve solving a system of linear matrix equations of the

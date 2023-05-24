@@ -65,9 +65,10 @@ player_inputs = (SVector(1,2), SVector(3,4))
 # the horizon of the game
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
-solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="OLNE_costate")
+solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
 x0 = SVector(0, 1, 1,1)
 c1, expert_traj1, strategies1 = solve(g, solver1, x0)
+
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)

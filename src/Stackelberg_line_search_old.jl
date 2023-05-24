@@ -1,6 +1,6 @@
-using Infiltrator
-# We only have two players 
-function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
+function Stackelberg_KKT_residual_old(λ::Vector, η::Vector, ψ::Vector, current_op::SystemTrajectory, g::LQGame, x0::SVector) #1    
+    # current_op is the trajectory under the strategy evaluated now
+    # g is the linear quadratic approximation for the trajectory under the strategy evaluated now
     # extract control and input dimensions
     nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
     # m is the input size of agent i, and T is the horizon.
@@ -14,9 +14,6 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
     
     M_next, N_next, n_next = zeros(M_size, M_size), zeros(M_size, nx), zeros(M_size)
     Mₜ,     Nₜ,      nₜ     = zeros(M_size, M_size), zeros(M_size, nx), zeros(M_size)
-    λ = zeros(T*nx*num_player)
-    η = zeros((T)*nu)
-    ψ = zeros(T*m)
     
     record_old_Mₜ_size = M_size
     K, k = zeros(M_size, nx), zeros(M_size)
@@ -25,19 +22,17 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
     
     Π_next = zeros(nu, nx*num_player)
     π¹_next = zeros(m, nx)
-    Aₜ₊₁ = zeros(nx, nx)
-    Bₜ₊₁ = zeros(nx, nu)
-    # K_lambda_next = zeros(2*nx, nx)
-    # k_lambda_next = zeros(2*nx)
+
+    solution_vector = []
     for t in T:-1:1 # work in backwards to construct the KKT constraint matrix
         dyn, cost = dynamics(g)[t], player_costs(g)[t]
         # convenience shorthands for the relevant quantities
         A, B = dyn.A, dyn.B
-        Âₜ₊₁, B̂ₜ = zeros(nx*num_player, nx*num_player), zeros(nx*num_player, nu)
+        Âₜ, B̂ₜ = zeros(nx*num_player, nx*num_player), zeros(nx*num_player, nu)
         Rₜ, Qₜ = zeros(nu, nu), zeros(nx*num_player, nx)
         rₜ, qₜ = zeros(nu), zeros(nx*num_player)
-        B̃ₜ₊₁, R̃ₜ = zeros(num_player*nx, (num_player-1)*nu), zeros((num_player-1)*nu, nu)
-        # Πₜ = zeros((num_player-1)*nu, num_player*nx)
+        B̃ₜ, R̃ₜ = zeros(num_player*nx, (num_player-1)*nu), zeros((num_player-1)*nu, nu)
+        Πₜ = zeros((num_player-1)*nu, num_player*nx)
         
         B̃² = [B[:,m+1:nu]; zeros(nx, m)]
         
@@ -84,24 +79,20 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
             Π_next[1:m,1:nx] = π̂²
             
             Π_next[m+1:nu, nx+1:2*nx] = π¹_next
-            strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))     
-            Aₜ₊₁ = A
-            Bₜ₊₁ = B
-            # K_lambda_next = -K[nu+1:nu+nx+nx, :]
-            # k_lambda_next = -k[nu+1:nu+nx+nx, :]
-            # @infiltrate
+            # strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))     
+            solution_vector = [current_op.u[t]; λ[end-2*nx+1:end]; ψ[end-m+1:end]; current_op.x[t]; solution_vector]
         else
             # when t < T, we first solve for the follower
             for (ii, udxᵢ) in enumerate(uindex(g))
-                Âₜ₊₁[(ii-1)*nx+1:ii*nx, (ii-1)*nx+1:ii*nx] = Aₜ₊₁
+                Âₜ[(ii-1)*nx+1:ii*nx, (ii-1)*nx+1:ii*nx] = A
                 B̂ₜ[(ii-1)*nx+1:ii*nx, (ii-1)*m+1:ii*m] = B[:,udxᵢ]
                 Qₜ[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = cost[ii].Q, cost[ii].R[udxᵢ,:]
                 qₜ[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = cost[ii].l, cost[ii].r[udxᵢ]
                 udxᵢ_complement = setdiff(1:1:nu, udxᵢ)
                 
-                B̃ₜ₊₁[(ii-1)*nx+1:ii*nx, (ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m] = Bₜ₊₁[:,udxᵢ_complement] # 
+                B̃ₜ[(ii-1)*nx+1:ii*nx, (ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m] = B[:,udxᵢ_complement] # 
                 R̃ₜ[(ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m, :] = cost[ii].R[udxᵢ_complement,:] # 
-                # Πₜ[(ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m, (ii-1)*nx+1:ii*nx] = K[udxᵢ_complement, :] #
+                Πₜ[(ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m, (ii-1)*nx+1:ii*nx] = K[udxᵢ_complement, :] #
             end
             size_M_next = size(M_next, 1)
             
@@ -111,8 +102,8 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
                       zeros(m, m+nx)  -I(m)  zeros(m, nx)]
             
             tmp_D2 = [zeros(m+nx, size_M_next); 
-                    zeros(nx, nu+nx) Aₜ₊₁' zeros(nx, size_M_next-nu-2*nx);
-                    zeros(m, nu+nx)  Bₜ₊₁[:,1:m]' zeros(m, size_M_next-nu-2*nx) ]
+                    zeros(nx, nu+nx) A' zeros(nx, size_M_next-nu-2*nx);
+                    zeros(m, nu+nx)  B[:,1:m]' zeros(m, size_M_next-nu-2*nx) ]
 
             M2 = [tmp_D1  tmp_D2; zeros(size_M_next, size(tmp_D1, 2)-nx)  Nₜ  Mₜ]
 
@@ -121,7 +112,6 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
             inv_M2_N2 = -inv(M2)*N2
             π̂², π̌² = inv_M2_N2[1:m, 1:nx], inv_M2_N2[1:m, nx+1:nx+m]
             Π²[:,1:m] = π̌²
-            # @infiltrate
 
 
             # we then solve the leader
@@ -138,9 +128,9 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
                 zeros(m, nu)  B̃²'  zeros(m, nu)  -I(m)  zeros(m, nx);
                 zeros(nu,nu)  zeros(nu, 2*nx)  -I(nu)  zeros(nu, m+nx)]
             D2 = [zeros(nu+nx, size_M_next);
-                zeros(2*nx, nu) Âₜ₊₁' zeros(2*nx, size_M_next-nu-2*nx);
+                zeros(2*nx, nu) Âₜ' zeros(2*nx, size_M_next-nu-2*nx);
                 zeros(m, size_M_next);
-                zeros(nu, nu) B̃ₜ₊₁' zeros(nu, size_M_next-2*nx-nu)]
+                zeros(nu, nu) B̃ₜ' zeros(nu, size_M_next-2*nx-nu)]
             Mₜ = [D1  D2; zeros(size_M_next, size(D1, 2)-nx)  N_next  M_next]
 
             nₜ[1:nu], nₜ[nu+nx+1:nu+nx+num_player*nx] = rₜ, qₜ
@@ -152,26 +142,12 @@ function solve_lq_game_Stackelberg_KKT!(strategies, g::LQGame, x0)
             π¹_next = K[1:m,:] # update π¹_next
             Π_next[1:m,1:nx] = π̂²
             Π_next[m+1:nu, nx+1:2*nx] = π¹_next
-            strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
-            Aₜ₊₁ = A
-            Bₜ₊₁ = B
-            # K_lambda_next = -K[nu+1:nu+nx+nx, :]
-            # k_lambda_next = -k[nu+1:nu+nx+nx, :]
-            # @infiltrate
+            # strategies[t] = AffineStrategy(SMatrix{nu, nx}(-K[1:nu,:]), SVector{nu}(-k[1:nu]))
+            solution_vector = [current_op.u[t]; λ[(t-1)*2*nx+1:t*2*nx]; η[(t-1)*nu+1:t*nu]; ψ[(t-1)*m+1:t*m]; current_op.x[t]; solution_vector]
         end
     end
-    solution = K*x0+k
-    for t in 1:1:T
-        # @infiltrate
-        if t == T
-            λ[(t-1)*nx*num_player+1:t*nx*num_player] =  solution[ end-M_size+nu+1:end-M_size+nu+2*nx ]
-            ψ[(t-1)*m+1:t*m] =                          solution[ end-M_size+nu+2*nx+1:end-M_size+nu+2*nx+m ]
-        else
-            λ[(t-1)*nx*num_player+1:t*nx*num_player] =  solution[ (t-1)*new_M_size+nu+1:(t-1)*new_M_size+nu+nx*num_player ]
-            η[(t-1)*nu+1:t*nu] =                        solution[ (t-1)*new_M_size+nu+nx*num_player+1:(t-1)*new_M_size+nu+nx*num_player+nu ]
-            ψ[(t-1)*m+1:t*m] =                          solution[ (t-1)*new_M_size+nu+nx*num_player+nu+1:(t-1)*new_M_size+nu+nx*num_player+nu+m ]
-        end
-    end
-    # @infiltrate
-    return λ, η, ψ
+    
+    
+    loss = norm(Mₜ*solution_vector + Nₜ*x0+nₜ, 2)
+    return loss   
 end

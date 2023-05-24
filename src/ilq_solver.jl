@@ -1,4 +1,4 @@
-# using Infiltrator
+using Infiltrator
 @with_kw struct iLQSolver{TLM, TOM, TQM}
     equilibrium_type::String = "FBNE"
     "The regularization term for the state cost quadraticization."
@@ -11,7 +11,7 @@
     backtrack scaling."
     α_scale_step::Float64 = 0.5
     "Iteration is aborted if this number is exceeded."
-    max_n_iter::Int = 200
+    max_n_iter::Int = 200 # 200
     "The maximum number of backtrackings per scaling step"
     max_scale_backtrack::Int = 4
     "The maximum elementwise difference bewteen operating points for
@@ -173,7 +173,7 @@ function OL_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::Si
         if current_loss < last_KKT_residual
             current_strategy = last_strategy + α*Δ_strategy
             last_KKT_residual = copy(current_loss)
-            # println("KKT residual is ",last_KKT_residual)
+            println("KKT residual is ",last_KKT_residual)
             # println("Line Search finished!")
             return true, current_strategy, current_op, last_KKT_residual
             # println("α is ", α)
@@ -186,6 +186,7 @@ function OL_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::Si
     return true, current_strategy, current_op, last_KKT_residual
 end
 
+include("Stackelberg_line_search_old.jl")
 include("Stackelberg_line_search.jl")
 function trajectory_KKT_line_search!(last_KKT_residual, λ::Vector, current_strategy::SizedVector, last_strategy::SizedVector,
                                     current_op::SystemTrajectory, last_op::SystemTrajectory,
@@ -286,12 +287,18 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             λ=solve_lq_game_OLNE_with_costate!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "FBNE_costate"
             λ=solve_lq_game_FBNE_with_costate!(current_strategy, lqg_approx, x0)
-        elseif solver.equilibrium_type == "Stackelberg_KKT"
+        elseif solver.equilibrium_type == "Stackelberg_KKT" 
             λ, η, ψ = solve_lq_game_Stackelberg_KKT!(current_strategy, lqg_approx, x0)
             last_λ=copy(λ)
             last_η = copy(η)
             last_ψ = copy(ψ)
-                
+            # @infiltrate
+        elseif solver.equilibrium_type == "Stackelberg_KKT_dynamic_factorization"
+            λ, η, ψ = solve_lq_game_Stackelberg_KKT_dynamic_factorization!(current_strategy, lqg_approx, x0)
+            last_λ=copy(λ)
+            last_η = copy(η)
+            last_ψ = copy(ψ)
+            # @infiltrate
         else
             @error "solver.equilibrium_type is wrong. Please check."
         end
@@ -313,7 +320,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
             last_λ = copy(λ)
             last_strategy = copy(current_strategy)
-        elseif solver.equilibrium_type=="Stackelberg_KKT"
+        elseif solver.equilibrium_type=="Stackelberg_KKT" || solver.equilibrium_type=="Stackelberg_KKT_dynamic_factorization"
             if i_iter >= 1
                 # @infiltrate
                 success, current_strategy, current_op, last_KKT_residual = Stackelberg_KKT_line_search!(last_KKT_residual, λ, η, ψ, last_λ, last_η, last_ψ, 

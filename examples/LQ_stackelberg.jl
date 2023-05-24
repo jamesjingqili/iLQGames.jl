@@ -12,7 +12,7 @@ using LinearAlgebra
 include("diff_solver.jl")
 include("inverse_game_solver.jl")
 
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 2
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 10
 
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
@@ -25,9 +25,14 @@ costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 +
 player_inputs = (SVector(1,2), SVector(3,4))
 # the horizon of the game
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
+x0 = SVector(0, 1, 1,1)
+
 
 solver = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="Stackelberg_KKT")
-x0 = SVector(0, 1, 1,1)
-c, x, π = solve(g, solver, x0)
+@time c, x, π = solve(g, solver, x0)
+
+
+solver1 = iLQSolver(g, max_scale_backtrack=10, max_elwise_diff_step=Inf, equilibrium_type="Stackelberg_KKT_dynamic_factorization")
+@time c1, x1, π1 = solve(g, solver1, x0)
 
 
