@@ -11,7 +11,7 @@ using Infiltrator
     backtrack scaling."
     α_scale_step::Float64 = 0.5
     "Iteration is aborted if this number is exceeded."
-    max_n_iter::Int = 200 # 200
+    max_n_iter::Int = 30 # 200
     "The maximum number of backtrackings per scaling step"
     max_scale_backtrack::Int = 20
     "The maximum elementwise difference bewteen operating points for
@@ -265,14 +265,14 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
     # TODO -- we could probably allow to skip this in some warm-starting scenarios
     # @infiltrate
     trajectory!(current_op, dynamics(g), current_strategy, last_op, x0) # repeat the initial state, for the first run.
-    
+    last_KKT_residual = 1e6
     # things going to be updated: current_strategy, current_op, lqg_approx, last_λ
     while !(converged || i_iter >= solver.max_n_iter)
         # sanity chech to make sure that we don't manipulate the wrong
         # object...
         @assert !(last_op === current_op) "current and last operating point
         refer to the *same* object."
-        last_KKT_residual = 1e6
+        
         # 1. linearize dynamics and quadratisize costs to obtain an lq game
         lq_approximation!(lqg_approx, solver, g, current_op)
         # 2. solve the current lq version of the game
@@ -355,7 +355,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         end
         # @infiltrate i_iter == solver.max_n_iter-1
         i_iter += 1
-        converged = has_converged(solver, last_op, current_op)
+        # converged = has_converged(solver, last_op, current_op)
         @infiltrate
         println("Iteration ", i_iter, " finished  with residual: ", last_KKT_residual)
     end
