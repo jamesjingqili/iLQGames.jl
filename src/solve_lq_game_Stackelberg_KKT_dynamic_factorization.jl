@@ -2,7 +2,7 @@ using Infiltrator
 # We only have two players 
 function solve_lq_game_Stackelberg_KKT_dynamic_factorization!(strategies, g::LQGame, x0)
     # extract control and input dimensions
-    nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
+    nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)-1
     # m is the input size of agent i, and T is the horizon.
     num_player = n_players(g) # number of player
     @assert length(num_player) != 2
@@ -34,6 +34,7 @@ function solve_lq_game_Stackelberg_KKT_dynamic_factorization!(strategies, g::LQG
     k_multipliers = zeros((T-1)*(2*nx+nu+m) + (2*nx+m), 1)
     for t in T:-1:1 # work in backwards to construct the KKT constraint matrix
         dyn, cost = dynamics(g)[t], player_costs(g)[t]
+        next_cost = player_costs(g)[t+1]
         # convenience shorthands for the relevant quantities
         A, B = dyn.A, dyn.B
         Âₜ₊₁, B̂ₜ = zeros(nx*num_player, nx*num_player), zeros(nx*num_player, nu)
@@ -47,8 +48,8 @@ function solve_lq_game_Stackelberg_KKT_dynamic_factorization!(strategies, g::LQG
             # We first solve for the follower
             for (ii, udxᵢ) in enumerate(uindex(g))
                 B̂ₜ[(ii-1)*nx+1:ii*nx, (ii-1)*m+1:ii*m] = B[:,udxᵢ]
-                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = cost[ii].Q, cost[ii].R[udxᵢ,:]
-                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = cost[ii].l, cost[ii].r[udxᵢ]
+                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = next_cost[ii].Q, cost[ii].R[udxᵢ,:]
+                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = next_cost[ii].l, cost[ii].r[udxᵢ]
             end
             N2 = zeros(m+nx+nx, nx+m)
             M2 = zeros(m+nx+nx, m+nx+nx)
@@ -98,8 +99,8 @@ function solve_lq_game_Stackelberg_KKT_dynamic_factorization!(strategies, g::LQG
             for (ii, udxᵢ) in enumerate(uindex(g))
                 Âₜ₊₁[(ii-1)*nx+1:ii*nx, (ii-1)*nx+1:ii*nx] = Aₜ₊₁
                 B̂ₜ[(ii-1)*nx+1:ii*nx, (ii-1)*m+1:ii*m] = B[:,udxᵢ]
-                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = cost[ii].Q, cost[ii].R[udxᵢ,:]
-                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = cost[ii].l, cost[ii].r[udxᵢ]
+                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = next_cost[ii].Q, cost[ii].R[udxᵢ,:]
+                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = next_cost[ii].l, cost[ii].r[udxᵢ]
                 udxᵢ_complement = setdiff(1:1:nu, udxᵢ)
                 
                 B̃ₜ₊₁[(ii-1)*nx+1:ii*nx, (ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m] = Bₜ₊₁[:,udxᵢ_complement] # 

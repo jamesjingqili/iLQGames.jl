@@ -13,13 +13,13 @@ using Infiltrator
     "Iteration is aborted if this number is exceeded."
     max_n_iter::Int = 200 # 200
     "The maximum number of backtrackings per scaling step"
-    max_scale_backtrack::Int = 10
+    max_scale_backtrack::Int = 20
     "The maximum elementwise difference bewteen operating points for
     convergence."
     max_elwise_diff_converged::Float64 = α_scale_init/10
     "The maximum elementwise difference bewteen operating points for per
     iteration step."
-    max_elwise_diff_step::Float64 = 20 * max_elwise_diff_converged
+    max_elwise_diff_step::Float64 = 30 * max_elwise_diff_converged
     "Preallocated memory for lq approximations."
     _lq_mem::TLM
     "Preallocated memory for quadraticization results."
@@ -256,9 +256,11 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
     current_op = initial_op
     current_strategy = initial_strategy
     lqg_approx = solver._lq_mem
-    last_λ = 100*ones(horizon(g)*n_states(g)*length(uindex(g)))
+    T = horizon(g)-1
+    last_λ = 100*ones(T*n_states(g)*length(uindex(g)))
     last_strategy = copy(initial_strategy)
-    
+    last_η = 100*ones(Int(T*n_controls(g)))
+    last_ψ = 100*ones(Int(T*n_controls(g)/length(uindex(g))))
     # 0. compute the operating point for the first run.
     # TODO -- we could probably allow to skip this in some warm-starting scenarios
     # @infiltrate
@@ -270,10 +272,9 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # object...
         @assert !(last_op === current_op) "current and last operating point
         refer to the *same* object."
-
+        last_KKT_residual = 1e6
         # 1. linearize dynamics and quadratisize costs to obtain an lq game
         lq_approximation!(lqg_approx, solver, g, current_op)
-        last_KKT_residual = OL_KKT_residual(last_λ, current_op, lqg_approx, x0)
         # 2. solve the current lq version of the game
         if solver.equilibrium_type == "FBNE"
             solve_lq_game_FBNE!(current_strategy, lqg_approx)
@@ -289,15 +290,16 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             λ=solve_lq_game_FBNE_with_costate!(current_strategy, lqg_approx, x0)
         elseif solver.equilibrium_type == "Stackelberg_KKT" 
             λ, η, ψ = solve_lq_game_Stackelberg_KKT!(current_strategy, lqg_approx, x0)
-            last_λ=copy(λ)
-            last_η = copy(η)
-            last_ψ = copy(ψ)
+            # last_λ=copy(λ)
+            # last_η = copy(η)
+            # last_ψ = copy(ψ)
             # @infiltrate
         elseif solver.equilibrium_type == "Stackelberg_KKT_dynamic_factorization"
+            # NOTICE: the problem comes from the below line: after the first solve, then under the previous strategy, the new lqg_approx generates a new but different strategy
             λ, η, ψ = solve_lq_game_Stackelberg_KKT_dynamic_factorization!(current_strategy, lqg_approx, x0)
-            last_λ=copy(λ)
-            last_η = copy(η)
-            last_ψ = copy(ψ)
+            # last_λ=copy(λ)
+            # last_η = copy(η)
+            # last_ψ = copy(ψ)
             # @infiltrate
         else
             @error "solver.equilibrium_type is wrong. Please check."
@@ -321,22 +323,24 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
             last_λ = copy(λ)
             last_strategy = copy(current_strategy)
         elseif solver.equilibrium_type=="Stackelberg_KKT" || solver.equilibrium_type=="Stackelberg_KKT_dynamic_factorization"
-            if i_iter >= 1
-                # @infiltrate
-                success, current_strategy, current_op, last_KKT_residual = Stackelberg_KKT_line_search!(last_KKT_residual, λ, η, ψ, last_λ, last_η, last_ψ, 
+            # if i_iter >= 0
+            # @infiltrate
+            success, current_op, last_KKT_residual, α, Δ_strategy, Δ_λ, Δ_η, Δ_ψ = Stackelberg_KKT_line_search!(
+                last_KKT_residual, λ, η, ψ, last_λ, last_η, last_ψ, 
                 current_strategy, last_strategy, current_op, last_op,
                 dynamics(g), solver, g, lqg_approx, x0)
-                # @infiltrate
-                trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
-                last_λ=copy(λ)
-                last_η = copy(η)
-                last_ψ = copy(ψ)
-                last_strategy = copy(current_strategy)
-            else
-                success = true
-                trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
-                last_strategy = copy(current_strategy)
-            end
+            # @infiltrate
+            # trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
+            
+            last_λ = copy(last_λ + α*Δ_λ)
+            last_η = copy(last_η + α*Δ_η)
+            last_ψ = copy(last_ψ + α*Δ_ψ)
+            last_strategy = copy(last_strategy + α*Δ_strategy)
+            # else
+                # success = true
+                # trajectory!(current_op, dynamics(g), current_strategy, last_op, x0, solver.max_elwise_diff_step)
+                # last_strategy = copy(current_strategy)
+            # end
         else
             # success = true
             success = backtrack_scale!(current_strategy, current_op, last_op, dynamics(g), solver)# take the last_op and current_strategy to current_op. 
@@ -352,7 +356,8 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # @infiltrate i_iter == solver.max_n_iter-1
         i_iter += 1
         converged = has_converged(solver, last_op, current_op)
-        println("Iteration ", i_iter, " finished.")
+        @infiltrate
+        println("Iteration ", i_iter, " finished  with residual: ", last_KKT_residual)
     end
 
     # NOTE: for `converged == false` the result may not be meaningful. `converged`

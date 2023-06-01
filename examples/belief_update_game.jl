@@ -20,6 +20,8 @@ nx, nu, ΔT, game_horizon = 8+1, 4, 0.1, 40
 # \pi_t^2(x, )
 
 
+# TODO: embed belief update into the dynamics, and then compute a strategy.
+
 
 
 struct DoubleUnicycle <: ControlSystem{ΔT,nx,nu} end

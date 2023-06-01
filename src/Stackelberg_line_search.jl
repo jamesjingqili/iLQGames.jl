@@ -3,7 +3,7 @@ function Stackelberg_KKT_residual(λ::Vector, η::Vector, ψ::Vector, current_op
     # current_op is the trajectory under the strategy evaluated now
     # g is the linear quadratic approximation for the trajectory under the strategy evaluated now
     # extract control and input dimensions
-    nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)
+    nx, nu, m, T = n_states(g), n_controls(g), length(uindex(g)[1]), horizon(g)-1
     # m is the input size of agent i, and T is the horizon.
     num_player = n_players(g) # number of player
     @assert length(num_player) != 2
@@ -25,6 +25,7 @@ function Stackelberg_KKT_residual(λ::Vector, η::Vector, ψ::Vector, current_op
     
     for t in T:-1:1 # work in backwards to construct the KKT constraint matrix
         dyn, cost = dynamics(g)[t], player_costs(g)[t]
+        next_cost = player_costs(g)[t+1]
         # convenience shorthands for the relevant quantities
         A, B = dyn.A, dyn.B
         Âₜ₊₁, B̂ₜ = zeros(nx*num_player, nx*num_player), zeros(nx*num_player, nu)
@@ -37,8 +38,8 @@ function Stackelberg_KKT_residual(λ::Vector, η::Vector, ψ::Vector, current_op
             # We first solve for the follower
             for (ii, udxᵢ) in enumerate(uindex(g))
                 B̂ₜ[(ii-1)*nx+1:ii*nx, (ii-1)*m+1:ii*m] = B[:,udxᵢ]
-                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = cost[ii].Q, cost[ii].R[udxᵢ,:]
-                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = cost[ii].l, cost[ii].r[udxᵢ]
+                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = next_cost[ii].Q, cost[ii].R[udxᵢ,:]
+                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = next_cost[ii].l, cost[ii].r[udxᵢ]
             end
             N2 = zeros(m+nx+nx, nx+m)
             M2 = zeros(m+nx+nx, m+nx+nx)
@@ -72,7 +73,7 @@ function Stackelberg_KKT_residual(λ::Vector, η::Vector, ψ::Vector, current_op
             
             
             Π_next[m+1:nu, nx+1:2*nx] = π¹_next
-            solution_vector = [current_op.u[t]; λ[end-2*nx+1:end]; ψ[end-m+1:end]; current_op.x[t]; solution_vector]
+            solution_vector = [current_op.u[t]; λ[end-2*nx+1:end]; ψ[end-m+1:end]; current_op.x[t+1]; solution_vector]
             Aₜ₊₁ = A
             Bₜ₊₁ = B
             K_lambda_next = -K[nu+1:nu+nx+nx, :]
@@ -82,8 +83,8 @@ function Stackelberg_KKT_residual(λ::Vector, η::Vector, ψ::Vector, current_op
             for (ii, udxᵢ) in enumerate(uindex(g))
                 Âₜ₊₁[(ii-1)*nx+1:ii*nx, (ii-1)*nx+1:ii*nx] = Aₜ₊₁
                 B̂ₜ[(ii-1)*nx+1:ii*nx, (ii-1)*m+1:ii*m] = B[:,udxᵢ]
-                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = cost[ii].Q, cost[ii].R[udxᵢ,:]
-                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = cost[ii].l, cost[ii].r[udxᵢ]
+                Qₜ₊₁[(ii-1)*nx+1:ii*nx,:], Rₜ[udxᵢ,:] = next_cost[ii].Q, cost[ii].R[udxᵢ,:]
+                qₜ₊₁[(ii-1)*nx+1:ii*nx], rₜ[udxᵢ] = next_cost[ii].l, cost[ii].r[udxᵢ]
                 udxᵢ_complement = setdiff(1:1:nu, udxᵢ)
                 
                 B̃ₜ₊₁[(ii-1)*nx+1:ii*nx, (ii-1)*(num_player-1)*m+1:ii*(num_player-1)*m] = Bₜ₊₁[:,udxᵢ_complement] # 
@@ -163,7 +164,7 @@ function Stackelberg_KKT_residual(λ::Vector, η::Vector, ψ::Vector, current_op
                                 λ[(t-1)*2*nx+1:t*2*nx]; 
                                 η[(t-1)*nu+1:t*nu]; 
                                 ψ[(t-1)*m+1:t*m]; 
-                                current_op.x[t]; 
+                                current_op.x[t+1]; 
                                 solution_vector]
             Aₜ₊₁ = A
             Bₜ₊₁ = B
@@ -196,11 +197,11 @@ function Stackelberg_KKT_line_search!(last_KKT_residual, λ::Vector, η::Vector,
         current_loss = Stackelberg_KKT_residual(last_λ+α*Δ_λ, last_η+α*Δ_η, last_ψ+α*Δ_ψ, current_op, current_lqg_approx, x0)
         # @infiltrate
         if current_loss < last_KKT_residual
-            current_strategy = last_strategy + α*Δ_strategy
+            # current_strategy = last_strategy + α*Δ_strategy
             last_KKT_residual = copy(current_loss)
-            println("KKT residual is ",last_KKT_residual)
-            # println("Line Search finished!")
-            return true, current_strategy, current_op, last_KKT_residual
+            # println("KKT residual is ",last_KKT_residual)
+            println("Line Search finished with α = ", α, " and KKT residual is ", last_KKT_residual)
+            return true, current_op, last_KKT_residual, α, Δ_strategy, Δ_λ, Δ_η, Δ_ψ
             # println("α is ", α)
             break
         end
@@ -209,7 +210,7 @@ function Stackelberg_KKT_line_search!(last_KKT_residual, λ::Vector, η::Vector,
     # println("Current α is ",α)
     # @warn "Line Search failed."
     println("line search failed but KKT residual is ",last_KKT_residual)
-    return true, current_strategy, current_op, last_KKT_residual
+    return true, current_op, last_KKT_residual, α, Δ_strategy, Δ_λ, Δ_η, Δ_ψ
 end
 
 
