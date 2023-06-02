@@ -54,6 +54,7 @@ gif(anim1, "lane_guiding_OL.gif", fps = 10)
 # get a solver, choose initial conditions and solve (in about 9 ms with AD)
 solver2 = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="FBNE_costate")
 c2, expert_traj2, strategies2 = solve(g, solver2, x0)
+x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1)
 
 x1_FB, y1_FB = [expert_traj2.x[i][1] for i in 1:game_horizon], [expert_traj2.x[i][2] for i in 1:game_horizon];
 x2_FB, y2_FB = [expert_traj2.x[i][5] for i in 1:game_horizon], [expert_traj2.x[i][6] for i in 1:game_horizon];

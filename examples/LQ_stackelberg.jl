@@ -11,7 +11,7 @@ using Optim
 using LinearAlgebra
 
 
-nx, nu, ΔT, game_horizon = 4, 4, 0.1, 10
+nx, nu, ΔT, game_horizon = 4, 4, 0.1, 60
 
 struct LinearSystem <: ControlSystem{ΔT,nx,nu} end
 dx(cs::LinearSystem, x, u, t) = SVector(u[1],u[2],u[3],u[4])
@@ -24,16 +24,24 @@ costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[3])^2 + 2*(x[4])^2 + u[1]^2 +
 player_inputs = (SVector(1,2), SVector(3,4))
 # the horizon of the game
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-x0 = SVector(0, 1, 1,1/3)
+x0 = SVector(0.3, 1.1, 1,1/3)
 
 
 solver3 = iLQSolver(g, 
     max_scale_backtrack=20,
     max_elwise_diff_converged = 1e-4, 
     max_elwise_diff_step = 1e-3, 
-    max_n_iter = 2000, 
+    max_n_iter = 20, 
     equilibrium_type="Stackelberg_KKT_dynamic_factorization")
 @time c3, x3, π3 = solve(g, solver3, x0)
+
+
+
+
+
+
+
+
 
 
 solver4 = iLQSolver(g, max_elwise_diff_converged = 1e-4, max_elwise_diff_step = 1e-3, max_n_iter = 10000,
