@@ -356,7 +356,7 @@ function solve!(initial_op::SystemTrajectory, initial_strategy::StaticVector,
         # @infiltrate i_iter == solver.max_n_iter-1
         i_iter += 1
         # converged = has_converged(solver, last_op, current_op)
-        @infiltrate
+        # @infiltrate
         println("Iteration ", i_iter, " finished  with residual: ", last_KKT_residual)
     end
 

@@ -197,12 +197,12 @@ function Stackelberg_KKT_line_search!(last_KKT_residual, λ::Vector, η::Vector,
         current_loss = Stackelberg_KKT_residual(last_λ+α*Δ_λ, last_η+α*Δ_η, last_ψ+α*Δ_ψ, current_op, current_lqg_approx, x0)
         # @infiltrate
         if current_loss < last_KKT_residual
-            @infiltrate
+            # @infiltrate
             # current_strategy = last_strategy + α*Δ_strategy
             last_KKT_residual = copy(current_loss)
             # println("KKT residual is ",last_KKT_residual)
             println("Line Search finished with α = ", α, " and KKT residual is ", last_KKT_residual)
-            @infiltrate
+            # @infiltrate
             return true, current_op, last_KKT_residual, α, Δ_strategy, Δ_λ, Δ_η, Δ_ψ
             # println("α is ", α)
             break

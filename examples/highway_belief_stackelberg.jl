@@ -4,14 +4,14 @@ import BenchmarkTools
 using Plots
 using ForwardDiff
 
-nx, nu, ΔT, game_horizon = 8+1, 4, 0.1, 40
+nx, nu, ΔT, game_horizon = 8+1, 4, 0.1, 10
 
 
 # dynamics in the mind of the first player: iLQR, substituting player 2's control with player 2's varying belief
 struct player1_dynamics <: ControlSystem{ΔT, 8+1+2, 4 } end
 dx(cs::player1_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
                                     x[8]cos(x[7]), x[8]sin(x[7]), 0, 0, 
-                                    0
+                                    0, 0, 0
                                     )
 dynamics1 = player1_dynamics()
 
@@ -20,36 +20,56 @@ dynamics1 = player1_dynamics()
 struct player2_dynamics <: ControlSystem{ΔT, 8+2, 4 } end
 dx(cs::player2_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
                                     x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4], 
-                                    0
+                                    0, 0
                                     )
 dynamics2 = player2_dynamics()
 
 
+# dynamics of the 2-player game
 struct total_dynamics <: ControlSystem{ΔT, 8+1+2, 4 } end
 dx(cs::total_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
                                     x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4], 
-                                    0
+                                    0, 0, 0
                                     )
-dynamics2 = total_dynamics()
+dynamics3 = total_dynamics()
 
 
 
 
 
 
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[5]-1)^2  + u[1]^2 + u[2]^2 )),
-         FunctionPlayerCost((g, x, u, t) -> (  x[9]*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + u[3]^2 + u[4]^2 )))
 
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 2*(x[5]- x[9])^2  + u[1]^2 + u[2]^2 )),
+         FunctionPlayerCost((g, x, u, t) -> (  (x[5] - x[1])^2 + 2*(x[8]-1)^2 + u[3]^2 + u[4]^2 )))
 player_inputs = (SVector(1,2), SVector(3,4))
 
-g1 = GeneralGame(game_horizon, (SVector(1,2), SVector(3,4)), (dynamics1, dynamics2), costs)
+
+g1 = GeneralGame(game_horizon, player_inputs, dynamics1, costs)
+g2 = GeneralGame(game_horizon, player_inputs, dynamics2, costs)
+g3 = GeneralGame(game_horizon, player_inputs, dynamics3, costs)
+
+
+x01 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,      1, 0, 1) # the last three states are: target lane, player 2's belief mean, player 2's belief variance
+x02 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,      0, 1) # the last two states are: player 2's belief mean, player 2's belief variance
+x03 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1,      1, 0, 1) # the last three states are: target lane, player 2's belief mean, player 2's belief variance
 
 
 
-g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
-x0 = SVector(0, 0.5, pi/2, 1,       1, 0, pi/2, 1)
-solver = iLQSolver(g, max_scale_backtrack=5, max_elwise_diff_step=Inf, equilibrium_type="Stackelberg_KKT")
-c, expert_traj, strategies = solve(g, solver, x0)
+
+
+
+solver1 = iLQSolver(g1, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="Stackelberg_KKT_dynamic_factorization")
+c1, x1, π1 = solve(g1, solver1, x01)
+
+solver2 = iLQSolver(g2, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="Stackelberg_KKT_dynamic_factorization")
+c2, x2, π2 = solve(g2, solver2, x02)
+
+solver3 = iLQSolver(g3, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="Stackelberg_KKT_dynamic_factorization")
+c3, x3, π3 = solve(g3, solver3, x03)
+
+
+
+# TODO: check Gaussian prior + Gaussian likelihood or Bernoulli + Beta
 
 
 x1_FB, y1_FB = [expert_traj.x[i][1] for i in 1:game_horizon], [expert_traj.x[i][2] for i in 1:game_horizon];
