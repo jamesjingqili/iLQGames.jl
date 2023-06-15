@@ -41,13 +41,6 @@ x211_FB, y211_FB = [x21.x[i][1] for i in 1:game_horizon], [x21.x[i][2] for i in 
 x212_FB, y212_FB = [x21.x[i][5] for i in 1:game_horizon], [x21.x[i][6] for i in 1:game_horizon];
 
 
-
-# plot(x211_FB,y211_FB)
-# plot!(x212_FB,y212_FB)
-
-
-
-
 π21_P_list = [ π21[t].P for t in 1:game_horizon ]
 push!(π21_P_list, π21_P_list[end])
 π21_α_list = [ π21[t].α for t in 1:game_horizon ]
@@ -102,31 +95,31 @@ dx(cs::player1_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], 
                                     ) + SVector(0,0,0,0,0,0,     
                                     u_list[Int(floor(t/ΔT))+1][3] - π21_P_list[Int(floor(t/ΔT))+1][3,:]'*(x-x_list[Int(floor(t/ΔT))+1])-π21_α_list[Int(floor(t/ΔT))+1][3], 
                                     u_list[Int(floor(t/ΔT))+1][4] - π21_P_list[Int(floor(t/ΔT))+1][4,:]'*(x-x_list[Int(floor(t/ΔT))+1])-π21_α_list[Int(floor(t/ΔT))+1][4],
-                                    0,0,0 )
-dynamics1 = player1_dynamics()
+                                    0,0,0 );
+dynamics1 = player1_dynamics();
 costs1 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[9])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # target lane is x[10], mean of player 2 belief
-         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 ))) 
-g1 = GeneralGame(game_horizon, player_inputs, dynamics1, costs1)
+         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5]-x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 ))); 
+g1 = GeneralGame(game_horizon, player_inputs, dynamics1, costs1);
 solver1 = iLQSolver(g1, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
-c1, x1, π1 = solve(g1, solver1, x01)
+c1, x1, π1 = solve(g1, solver1, x01);
 
 
 
+
+
+x1_list = [ x1.x[t] for t in 1:game_horizon ];
+u1_list = [ x1.u[t] for t in 1:game_horizon ];
+push!(x1_list, x1.x[game_horizon]);
+push!(u1_list, x1.u[game_horizon]);
+
+
+
+π1_P_list = [ π1[t].P for t in 1:game_horizon ];
+push!(π1_P_list, π1_P_list[end]);
+π1_α_list = [ π1[t].α for t in 1:game_horizon ];
+push!(π1_α_list, π1_α_list[end]);
 
 belief_list = [ x1.x[t][10] for t in 1:game_horizon ]
-
-x1_list = [ x1.x[t] for t in 1:game_horizon ]
-u1_list = [ x1.u[t] for t in 1:game_horizon ]
-push!(x1_list, x1.x[game_horizon])
-push!(u1_list, x1.u[game_horizon])
-
-
-
-π1_P_list = [ π1[t].P for t in 1:game_horizon ]
-push!(π1_P_list, π1_P_list[end])
-π1_α_list = [ π1[t].α for t in 1:game_horizon ]
-push!(π1_α_list, π1_α_list[end])
-
 
 
 
@@ -230,5 +223,8 @@ push!(π1_P_list, π1_P_list[end]);
 push!(π1_α_list, π1_α_list[end]);
 
 belief_list = [ x1.x[t][10] for t in 1:game_horizon ]
+
+
+
 
 
