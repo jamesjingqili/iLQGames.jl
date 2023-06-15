@@ -14,7 +14,7 @@ dx(cs::DoubleUnicycle, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[
                                     x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4])
 dynamics = DoubleUnicycle()
 
-costs = (FunctionPlayerCost((g, x, u, t) -> ( 10*(x[5]-1)^2 + 2*(x[4]-1)^2 + u[1]^2 + u[2]^2 - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
+costs = (FunctionPlayerCost((g, x, u, t) -> ( 10*(x[5]-0.2)^2 + 2*(x[4]-1)^2 + u[1]^2 + u[2]^2 - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))),
          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2 + 2*(x[8]-1)^2 + u[3]^2 + u[4]^2 - 0*((x[1]-x[5])^2 + (x[2]-x[6])^2))))
 
 
