@@ -83,10 +83,10 @@ struct player2_dynamics <: ControlSystem{ΔT, 8+1+2, 4 } end
 dx(cs::player2_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
                                     x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4],
                                     0, 
-                                     1* x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]'*inv(I(2)+π21_P_list[Int(floor(t/ΔT))+1][:,10]*x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]') * ( 
+                                     1/ΔT* x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]'*inv(I(2)+π21_P_list[Int(floor(t/ΔT))+1][:,10]*x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]') * ( 
                                       [u[1];u[2]] - u_list[Int(floor(t/ΔT))+1]+ 
-                                      π21_P_list[Int(floor(t/ΔT))+1]*(x-x_list[Int(floor(t/ΔT))+1]) + π21_α_list[Int(floor(t/ΔT))+1][:] ),  # mean 
-                                    - 1* x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]'*inv(I(2)+π21_P_list[Int(floor(t/ΔT))+1][:,10]*x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]') * π21_P_list[Int(floor(t/ΔT))+1][:,10]*x[11]                 # variance
+                                      π21_P_list[Int(floor(t/ΔT))+1]*(-x+x_list[Int(floor(t/ΔT))+1]) + π21_α_list[Int(floor(t/ΔT))+1][:] ),  # mean 
+                                    - 1/ΔT* x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]'*inv(I(2)+π21_P_list[Int(floor(t/ΔT))+1][:,10]*x[11]*π21_P_list[Int(floor(t/ΔT))+1][:,10]') * π21_P_list[Int(floor(t/ΔT))+1][:,10]*x[11]                 # variance
                                     )
 dynamics2 = player2_dynamics()
 costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-θ)^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # target lane is x[10], mean of player 2 belief
@@ -98,14 +98,15 @@ x02 = SVector(0, 0.5, pi/2, 1,
               0.0, 0.1, 1) # the last two states are: player 2's belief mean, player 2's belief variance
 c2, x2, π2 = solve(g2, solver2, x02)
 
+
 x2_list = [ x2.x[t][10] for t in 1:game_horizon ]
 
 
 
 
-# Problems: 1. \hat{u}_t + K_t(x - \hat{x}_t) + α_t = u_t, deep RL policy?
-#           2. b(0) = 0.1, not working
-#           3. b(0) = 0.2, not working, if 1/ΔT
+# Problems: 1. u_t = \hat{u}_t + K_t(x - \hat{x}_t) + α_t, deep RL policy?
+#           2. b(0) = 0.1, not working, now works.
+#           3. b(0) = 0.2, not working, if 1/ΔT, now works.
 
 
 
@@ -130,8 +131,8 @@ dx(cs::player1_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], 
                                     ) + SVector(0,0,0,0,0,0, -π21_P_list[Int(floor(t/ΔT))+1][1,:]'*x-π21_α_list[Int(floor(t/ΔT))+1][1], 
                                     -π21_P_list[Int(floor(t/ΔT))+1][2,:]'*x-π21_α_list[Int(floor(t/ΔT))+1][2],0,0,0 )
 dynamics1 = player1_dynamics()
-costs1 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-0.5)^2 + 2*(x[4]-1)^2  + u[1]^2 + u[2]^2 )),
-         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  +2*(x[8]-1)^2  + u[3]^2 + u[4]^2 )))
+costs2 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # target lane is x[10], mean of player 2 belief
+         FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2   +(x[7]-pi/2)^2 + u[3]^2 + u[4]^2 ))) 
 g1 = GeneralGame(game_horizon, player_inputs, dynamics1, costs1)
 solver1 = iLQSolver(g1, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
 c1, x1, π1 = solve(g1, solver1, x01)
