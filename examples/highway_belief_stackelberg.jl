@@ -133,7 +133,7 @@ dx(cs::player1_dynamics, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], 
 dynamics1 = player1_dynamics()
 costs2 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # target lane is x[10], mean of player 2 belief
          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2   +(x[7]-pi/2)^2 + u[3]^2 + u[4]^2 ))) 
-g1 = GeneralGame(game_horizon, player_inputs, dynamics1, costs1)
+g1 = GeneralGame(game_horizon, player_inputs, dynamics1, costs2)
 solver1 = iLQSolver(g1, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
 c1, x1, π1 = solve(g1, solver1, x01)
 
@@ -181,7 +181,7 @@ costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2 + 2*(x[4]-1)^2  +
          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  +2*(x[8]-1)^2  + u[3]^2 + u[4]^2 )))
 g2 = GeneralGame(game_horizon, player_inputs, dynamics2, costs)
 solver2 = iLQSolver(g2, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
-c2, x2, π2 = solve(g2, solver2, x02)
+c2, x2, π2 = solve(g2, solver2, x01)
 
 
 
