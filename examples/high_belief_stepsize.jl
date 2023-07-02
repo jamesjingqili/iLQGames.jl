@@ -26,14 +26,14 @@ dx(cs::player_dynamics, x, u, t) = SVector(x[4]cos(x[3]),
                                                 0   # variance is not updated in the first iteration
                                             )
 dynamics = player_dynamics()
-costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # target lane is x[10], mean of player 2 belief
+costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[9])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # target lane is x[10], mean of player 2 belief
             FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2   +(x[7]-pi/2)^2 + u[3]^2 + u[4]^2 ))) 
 
 player_inputs = (SVector(1,2), SVector(3,4))
 g = GeneralGame(game_horizon, player_inputs, dynamics, costs)
 x0 = SVector(0, 0.5, pi/2, 1,       
                 1, 0, pi/2, 1,  
-                0, 0.2, 1) # the last two states are: player 2's belief mean, player 2's belief variance
+                θ, 1, 1) # the last two states are: player 2's belief mean, player 2's belief variance
 solver = iLQSolver(g, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")#Stackelberg_KKT_dynamic_factorization
 c, x, π = solve(g, solver, x0)
 
@@ -53,6 +53,7 @@ push!(x_list, x_list[end])
 
 plot(x1_FB, y1_FB,label="player 1")
 plot!(x2_FB, y2_FB,label="player 2")
+vline!([0.2],label="target lane" )
 savefig("step0.png")
 
 
@@ -104,6 +105,8 @@ push!(x1_list, x1_list[end])
 
 plot(x11_FB, y11_FB,label="player 1")
 plot!(x12_FB, y12_FB,label="player 2")
+vline!([0.2],label="target lane" )
+
 savefig("step1.png")
 
 
@@ -179,9 +182,9 @@ belief_list = [ x2.x[t][10] for t in 1:game_horizon ]
 x21_FB, y21_FB = [x2.x[i][1] for i in 1:game_horizon], [x2.x[i][2] for i in 1:game_horizon];
 x22_FB, y22_FB = [x2.x[i][5] for i in 1:game_horizon], [x2.x[i][6] for i in 1:game_horizon];
 
-plot(x21_FB, y21_FB,label="player 1")
-plot!(x22_FB, y22_FB,label="player 2")
-savefig("step2.png")
+# plot(x21_FB, y21_FB,label="player 1")
+# plot!(x22_FB, y22_FB,label="player 2")
+# savefig("step2.png")
 
 
 
@@ -205,15 +208,26 @@ savefig("step2.png")
 # STEP 3:
 # dynamics in the mind of the second player: iLQGames, substituting player 1's control for player 2's belief update!
 struct player_dynamics3 <: ControlSystem{ΔT, 8+1+2, 4 } end
-dx(cs::player_dynamics3, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], u[2], 
+dx(cs::player_dynamics3, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), 0*u[1], 0*u[2], 
                                     x[8]cos(x[7]), x[8]sin(x[7]), u[3], u[4],
                                     0, 
                                     -1/ΔT* x[11]*π2_P_list[Int(floor(t/ΔT))+1][1:2,10]'*inv(I(2)+π2_P_list[Int(floor(t/ΔT))+1][1:2,10]*x[11]*π2_P_list[Int(floor(t/ΔT))+1][1:2,10]') * ( 
-                                        [u[1];u[2]] - u2_list[Int(floor(t/ΔT))+1][1:2]+ 
+                                        [
+                                            u2_list[Int(floor(t/ΔT))+1][1]- 
+                                                π2_P_list[Int(floor(t/ΔT))+1][1,:]'*(x-x2_list[Int(floor(t/ΔT))+1]) - π2_α_list[Int(floor(t/ΔT))+1][1];
+                                            u2_list[Int(floor(t/ΔT))+1][2]- 
+                                                π2_P_list[Int(floor(t/ΔT))+1][2,:]'*(x-x2_list[Int(floor(t/ΔT))+1]) - π2_α_list[Int(floor(t/ΔT))+1][2]
+                                        ] - u2_list[Int(floor(t/ΔT))+1][1:2]+ 
                                         π2_P_list[Int(floor(t/ΔT))+1][1:2,:]*(x-x2_list[Int(floor(t/ΔT))+1]) + π2_α_list[Int(floor(t/ΔT))+1][1:2] ),  # mean 
                                     - 1/ΔT* x[11]*π2_P_list[Int(floor(t/ΔT))+1][1:2,10]'*inv(I(2)+π2_P_list[Int(floor(t/ΔT))+1][1:2,10]*x[11]*π2_P_list[Int(floor(t/ΔT))+1][1:2,10]') * 
                                     π2_P_list[Int(floor(t/ΔT))+1][1:2,10]*x[11]                 # variance
-                                    );
+                                    ) + SVector(0,0,
+                                    u2_list[Int(floor(t/ΔT))+1][1]- 
+                                            π2_P_list[Int(floor(t/ΔT))+1][1,:]'*(x-x2_list[Int(floor(t/ΔT))+1]) - π2_α_list[Int(floor(t/ΔT))+1][1],
+                                    u2_list[Int(floor(t/ΔT))+1][2]- 
+                                            π2_P_list[Int(floor(t/ΔT))+1][2,:]'*(x-x2_list[Int(floor(t/ΔT))+1]) - π2_α_list[Int(floor(t/ΔT))+1][2],
+                                    0,0,0,0,
+                                    0,0,0);
 dynamics3 = player_dynamics3();
 
 costs3 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2 + 2*(x[4]-1)^2  + u[1]^2 + u[2]^2 )),
@@ -250,25 +264,25 @@ belief_list = [ x3.x[t][10] for t in 1:game_horizon ]
 
 
 
-x1_FB, y1_FB = [x3.x[i][1] for i in 1:game_horizon], [x3.x[i][2] for i in 1:game_horizon];
-x2_FB, y2_FB = [x3.x[i][5] for i in 1:game_horizon], [x3.x[i][6] for i in 1:game_horizon];
+# x1_FB, y1_FB = [x3.x[i][1] for i in 1:game_horizon], [x3.x[i][2] for i in 1:game_horizon];
+# x2_FB, y2_FB = [x3.x[i][5] for i in 1:game_horizon], [x3.x[i][6] for i in 1:game_horizon];
 
-plot(x1_FB, y1_FB,label="player 1")
-plot!(x2_FB, y2_FB,label="player 2")
+# plot(x1_FB, y1_FB,label="player 1")
+# plot!(x2_FB, y2_FB,label="player 2")
 
-savefig("step3.png")
+# savefig("step3.png")
 
-savefig("step5.png")
+# savefig("step5.png")
 
-savefig("step7.png")
+# savefig("step7.png")
 
-savefig("step9.png")
+# savefig("step9.png")
 
-savefig("step11.png")
+# savefig("step11.png")
 
-savefig("step13.png")
+# savefig("step13.png")
 
-savefig("step15.png")
+# savefig("step15.png")
 
 
 
@@ -324,13 +338,18 @@ x2_list = deepcopy(x4_list);
 u2_list = deepcopy(u4_list);
 
 belief_list = [ x4.x[t][10] for t in 1:game_horizon ]
-
+plot(1:game_horizon, belief_list, xlabel="t",ylabel="mean of belief", label="")
+savefig("mean_active_inference.png")
 
 x1_FB, y1_FB = [x4.x[i][1] for i in 1:game_horizon], [x4.x[i][2] for i in 1:game_horizon];
 x2_FB, y2_FB = [x4.x[i][5] for i in 1:game_horizon], [x4.x[i][6] for i in 1:game_horizon];
 
-plot(x1_FB, y1_FB,label="player 1")
+plot(x1_FB, y1_FB,label="player 1", xlabel="x", ylabel="y")
 plot!(x2_FB, y2_FB,label="player 2")
+vline!([0.2],label="target lane")
+savefig("active_inference.png")
+
+
 
 savefig("step4.png")
 
