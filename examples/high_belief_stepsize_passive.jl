@@ -58,9 +58,9 @@ push!(u_list, u_list[end])
 x_list = [ x.x[t] for t in 1:game_horizon ]
 push!(x_list, x_list[end])
 
-
-plot(x1_FB, y1_FB,label="player 1")
-plot!(x2_FB, y2_FB,label="player 2", xlabel="x", ylabel="y", title="Ground truth")
+figure = plot()
+plot!(figure, x1_FB, y1_FB,label="player 1")
+plot!(figure, x2_FB, y2_FB,label="player 2", xlabel="x", ylabel="y", title="Ground truth")
 savefig("step0.png")
 
 
