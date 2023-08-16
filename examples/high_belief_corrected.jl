@@ -8,8 +8,16 @@ using LinearAlgebra
 nx, nu, ΔT, game_horizon = 8+1+2, 4, 0.1, 40
 # weird behavior: when horizon = 40, fine, 50 or 100 blows up
 
-
+marker_list = 0.22:0.02:1;
+time_list = ΔT:ΔT:game_horizon*ΔT;
 θ = 0.2;
+initial_belief = 1;
+initial_state = SVector(-0.5,0.5,pi/2,1,1,0,pi/2,1);
+initial_state_truth = vcat(initial_state, SVector(0,θ,1));
+initial_state_1 = vcat(initial_state, SVector(0,initial_belief,1));
+initial_state_2 = vcat(initial_state, SVector(θ,initial_belief,1));
+
+
 
 # ground truth:
 struct player21_dynamics <: ControlSystem{ΔT, 8+1+2, 4 } end
@@ -100,7 +108,7 @@ u_list = [ x1.u[t] for t in 1:game_horizon ]
 push!(u_list, u_list[end])
 x_list = [ x1.x[t] for t in 1:game_horizon ]
 push!(x_list, x_list[end])
-
+# step 1 finished!
 
 plot(x11_FB, y11_FB,label="player 1")
 plot!(x12_FB, y12_FB,label="player 2")
@@ -172,6 +180,9 @@ push!(π2_P_list, π2_P_list[end]);
 push!(π2_α_list, π2_α_list[end]);
 
 belief_list = [ x2.x[t][10] for t in 1:game_horizon ]
+var_list = [x2.x[t][11] for t in 1:game_horizon]
+# step 2 finished!
+
 
 
 x21_FB, y21_FB = [x2.x[i][1] for i in 1:game_horizon], [x2.x[i][2] for i in 1:game_horizon];
@@ -233,6 +244,9 @@ x3_list = [ x3.x[t] for t in 1:game_horizon ];
 push!(x3_list, x3_list[end]);
 
 belief_list = [ x3.x[t][10] for t in 1:game_horizon ]
+var_list = [x3.x[t][11] for t in 1:game_horizon]
+# step 3 finished!
+
 
 
 # x1_FB, y1_FB = [x3.x[i][1] for i in 1:game_horizon], [x3.x[i][2] for i in 1:game_horizon];
@@ -292,14 +306,45 @@ push!(π2_P_list, π2_P_list[end]);
 push!(π2_α_list, π2_α_list[end]);
 
 belief_list = [ x4.x[t][10] for t in 1:game_horizon ]
+var_list = [x4.x[t][11] for t in 1:game_horizon]
+# step 4 finished!
+
+
+
+p1_costs_list = zeros(game_horizon)
+for t in 1:game_horizon
+  p1_costs_list[t] = costs4[1](g4, x4.x[t], x4.u[t], t)
+end
+sum(p1_costs_list)
+
+p2_costs_list = zeros(game_horizon)
+for t in 1:game_horizon
+  p2_costs_list[t] = costs4[2](g4, x4.x[t], x4.u[t], t)
+end
+sum(p2_costs_list)
+
+# step 4, costs: 51.39, 42.53
+# step 6, costs: 47.09, 39.82
+# step 8, costs: 48.01, 41.53
+# step 10, costs: 47.68, 40.99
+
 
 
 x1_FB, y1_FB = [x4.x[i][1] for i in 1:game_horizon], [x4.x[i][2] for i in 1:game_horizon];
 x2_FB, y2_FB = [x4.x[i][5] for i in 1:game_horizon], [x4.x[i][6] for i in 1:game_horizon];
 
-plot(x1_FB, y1_FB,label="player 1")
-plot!(x2_FB, y2_FB,label="player 2")
+scatter(x1_FB, y1_FB,markersize=6*marker_list,label="player 1")
+scatter!(x2_FB, y2_FB,markersize=6*marker_list,label="player 2")
+vline!([θ],label="target lane")
 savefig("step4.png")
+
+plot(1:game_horizon, belief_list,ribbon=var_list,label="belief",title="belief update",ylabel="target lane",xlabel="t")
+hline!([θ],label="ground truth")
+savefig("compelling belief step 4.png")
+
+
+
+
 
 
 
