@@ -225,8 +225,8 @@ dx(cs::player_dynamics3, x, u, t) = SVector(x[4]cos(x[3]), x[4]sin(x[3]), u[1], 
                                     );
 dynamics3 = player_dynamics3();
 
-costs3 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2 + 2*(x[4]-1)^2  + u[1]^2 + u[2]^2 )),
-          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  +2*(x[8]-1)^2  + u[3]^2 + u[4]^2 )));
+costs3 = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[10])^2 + (x[3]-pi/2)^2   + u[1]^2 + u[2]^2 )),
+          FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2   + (x[7]-pi/2)^2  + u[3]^2 + u[4]^2 )));
 g3 = GeneralGame(game_horizon, player_inputs, dynamics3, costs3);
 solver3 = iLQSolver(g3, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE");
 c3, x3, π3 = solve(g3, solver3, x01);
