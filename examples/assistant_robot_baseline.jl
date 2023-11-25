@@ -28,7 +28,7 @@ L = 1;
 marker_list = LinRange(1, 2, game_horizon)
 time_list = ΔT:ΔT:game_horizon*ΔT
 θ = 0.5; # we initialize θ to be 0.5, but the true θ can be π/4
-initial_belief = 0.9
+initial_belief = 0.1
 left_point_x = 1.0
 left_point_y = -1.0
 initial_state = SVector(
@@ -191,10 +191,10 @@ end
 savefig("baseline_assistive_robot_traj")
 
 
-savefig("assistive_robot_baseline_steps1.png")
+# savefig("assistive_robot_baseline_steps1.png")
 
 
-savefig("assistive_robot_baseline_steps.png")
+# savefig("assistive_robot_baseline_steps.png")
 
 
 
@@ -204,10 +204,10 @@ plot(1:game_horizon, [x3_list[t][3] for t in 1:game_horizon], xlabel="time", yla
 hline!([θ],label="target")
 savefig("baseline_assistive_robot_angle.png")
 
-savefig("assistive_robot_baseline_theta_old.png")
+# savefig("assistive_robot_baseline_theta_old.png")
 
 
-savefig("assistive_robot_baseline_theta.png")
+# savefig("assistive_robot_baseline_theta.png")
 
 
 
@@ -220,10 +220,10 @@ hline!([θ],label="ground truth")
 savefig("baseline_assistive_robot_belief.png")
 
 
-savefig("assistive_robot_baseline_belief.png")
+# savefig("assistive_robot_baseline_belief.png")
 
 
-savefig("assistive_robot_baseline_belief1.png")
+# savefig("assistive_robot_baseline_belief1.png")
 
 
 

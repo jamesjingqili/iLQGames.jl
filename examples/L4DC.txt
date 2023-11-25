@@ -1,0 +1,11 @@
+Human robot lift:
+    assistant_robot_new.jl
+    assistant_robot_baseline.jl
+
+
+Multi-player highway platoon:
+    high_belief_corrected_tuned.jl
+    high_belief_stepsize_passive.jl
+
+
+

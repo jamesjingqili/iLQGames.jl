@@ -61,6 +61,7 @@ push!(x_list, x_list[end])
 
 plot(x1_FB, y1_FB,label="player 1")
 plot!(x2_FB, y2_FB,label="player 2")
+
 savefig("step0.png")
 
 
@@ -112,6 +113,7 @@ push!(x_list, x_list[end])
 
 plot(x11_FB, y11_FB,label="player 1")
 plot!(x12_FB, y12_FB,label="player 2")
+
 savefig("step1.png")
 
 
