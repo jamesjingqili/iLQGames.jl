@@ -188,7 +188,7 @@ for t in 1:game_horizon
     end
     plot!([x11_FB[t], x12_FB[t]], [y11_FB[t], y12_FB[t]], color=:orange, label=plot_label)
 end
-savefig("baseline_assistive_robot_traj")
+savefig("figure/final_hri_traj_baseline.png")
 
 
 # savefig("assistive_robot_baseline_steps1.png")
@@ -202,7 +202,7 @@ savefig("baseline_assistive_robot_traj")
 
 plot(1:game_horizon, [x3_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="")
 hline!([θ],label="target")
-savefig("baseline_assistive_robot_angle.png")
+savefig("figure/baseline_assistive_robot_angle.png")
 
 # savefig("assistive_robot_baseline_theta_old.png")
 
@@ -217,7 +217,7 @@ savefig("baseline_assistive_robot_angle.png")
 
 plot(1:game_horizon, belief_list, ribbon=var_list, xlabel="time", ylabel="mean of belief target lane",label="")
 hline!([θ],label="ground truth")
-savefig("baseline_assistive_robot_belief.png")
+savefig("figure/baseline_assistive_robot_belief.png")
 
 
 # savefig("assistive_robot_baseline_belief.png")

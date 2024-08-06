@@ -1,0 +1,24 @@
+
+
+manipulation:
+use matlab for plotting
+final_manipulation_plot.jl
+We also use robotsuite for generating .gif
+
+
+lunar lander:
+use matlab for plotting
+
+
+
+furniture:
+final_hri_no_teaching_final_plots.jl
+
+
+highway:
+final_highway_driving.jl 
+final_highway_driving_sample.jl
+
+
+
+

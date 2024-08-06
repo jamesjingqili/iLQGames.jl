@@ -4,33 +4,49 @@ import BenchmarkTools
 using Plots
 using ForwardDiff
 using LinearAlgebra
-
+# player 1 is the student, player 2 is the teacher
 using Random
 using Distributions
 active_color = "#ff910a"
 passive_color = "#828282"
 complete_color = "#1c9993"
 plot_path="hri_figure/"
-nx, nu, ΔT, game_horizon = 5+3, 4, 0.1, 40
+nx, nu, ΔT, game_horizon = 5+3, 4, 0.1, 20
 # weird behavior: when horizon = 40, fine, 50 or 100 blows up
 L = 1;
 
+robot_care = 4.0;
+human_care = 4.0;
+task_weight = 1.0;
+intent_weight = 0.0;
+
+
+
+# 
+
+
+
+# [1, 0], check, outdated
+# [1, 20], check, outdated
+
 marker_list = LinRange(1, 2, game_horizon)
 time_list = ΔT:ΔT:game_horizon*ΔT
-θ = 0.7; # we initialize θ to be 0.1, but the true θ can be π/4
-initial_belief = 0.1
-left_point_x = 1.0
-left_point_y = -1.0
+# θ = 0.7; # we initialize θ to be 0.1, but the true θ can be π/4
+θ = 0.3; # 0.3
+initial_belief =0.1
+initial_variance = 0.3
+left_point_x =  2.0
+left_point_y = -2.0
 initial_state = SVector(
     left_point_x,
     left_point_y,
-    0.2,
+    0.6,
     left_point_x + L*cos(θ),
     left_point_y + L*sin(θ),
 )
-initial_state_truth = vcat(initial_state, SVector(θ, θ, 1.0))
-initial_state_1 = vcat(initial_state, SVector(initial_belief, initial_belief, 1.0))
-initial_state_2 = vcat(initial_state, SVector(θ, initial_belief, 1.0))
+initial_state_truth = vcat(initial_state, SVector(θ, θ, initial_variance))
+initial_state_1 = vcat(initial_state, SVector(initial_belief, initial_belief, initial_variance))
+initial_state_2 = vcat(initial_state, SVector(θ, initial_belief, initial_variance))
 
 function ReLU(x)
     return [relu(item) for item in x]
@@ -64,8 +80,8 @@ u[2], # x[2] is the y position of the robot
 );
 dynamics = player21_dynamics();
 costs = (
-    FunctionPlayerCost((g, x, u, t) -> ( (x[1])^2 + (x[2])^2 +  10*(x[3] - x[6])^2 + σ1*(u[1]^2 + u[2]^2) )),  # robot cost
-    FunctionPlayerCost((g, x, u, t) -> ( 10*(x[3] - x[6])^2 + σ2*((u[3]-u[1])^2 + (u[4]-u[2])^2) )) # human cost, teacher
+    FunctionPlayerCost((g, x, u, t) -> ( (x[1])^2 + (x[2])^2 +  robot_care*(x[3] - x[6])^2 + σ1*(u[1]^2 + u[2]^2) )),  # robot cost
+    FunctionPlayerCost((g, x, u, t) -> ( human_care*(x[3] - x[6])^2 + σ2*((u[3]-0*u[1])^2 + (u[4]-0*u[2])^2) )) # human cost, teacher
 );
 player_inputs = (SVector(1,2), SVector(3,4));
 
@@ -109,11 +125,11 @@ for t in 1:game_horizon
     end
     plot!([x11_ground_truth[t], x12_ground_truth[t]], [y11_ground_truth[t], y12_ground_truth[t]], linealpha = marker_alpha_list[t], color=:orange, label=plot_label)
 end
-savefig(plot_path*"final_hri_traj_ground_truth.png")
+savefig(plot_path*"final_hri_traj_ground_truth_no_teaching.png")
 
 plot(0:game_horizon-1, [x_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="")
 hline!([θ],label="target")
-savefig(plot_path*"final_hri_theta_ground_truth.png")
+savefig(plot_path*"final_hri_theta_ground_truth_no_teaching.png")
 # ground truth solved!
 
 
@@ -143,7 +159,7 @@ end
 function belief_mean_update(x,u,τ)
     t= Int(floor(τ/ΔT))+1
     return - 1/ΔT* x[end]*π1_P_list[t][3:4,6]'*inv(I(2)+π1_P_list[t][3:4,6]*x[end]*π1_P_list[t][3:4,6]') * ( 
-        [control3(x,τ)+u[3] - player1_imagined_control(x,τ,3);  control4(x,τ)+u[4] - player1_imagined_control(x,τ,4)] )
+        [u[3] - player1_imagined_control(x,τ,3);  u[4] - player1_imagined_control(x,τ,4)] )
 end
 function belief_variance_update(x,u,τ)
     t = Int(floor(τ/ΔT))+1
@@ -162,14 +178,14 @@ end
 # STEP iLQR:
 # u[3] and u[4] are the control of the human
 # dynamics in the mind of the second player: iLQR, substituting player 1's control with player 1's varying belief
-x02 = vcat(initial_state, SVector(θ, initial_belief, 1.0))
+x02 = vcat(initial_state, SVector(θ, initial_belief, initial_variance))
 struct player_dynamics2 <: ControlSystem{ΔT, nx, nu } end
 dx(cs::player_dynamics2, x, u, t) = SVector(
 control1(x,t), 
-control2(x,t),
-(control2(x,t) - control4(x,t)-u[4])*cos(x[3]) + (control1(x,t) - control3(x,t)-u[3])*sin(x[3]), # x[3] is the heading angle of the robot
--1/ΔT*x[4] + 1/ΔT*x[1] + 1/ΔT * L*cos(x[3]) + control3(x,t) + u[3], # x[4] is the x position of human
--1/ΔT*x[5] + 1/ΔT*x[2] + 1/ΔT * L*sin(x[3]) + control4(x,t) + u[4], # x[5] is the y position of human
+control2(x,t), 
+(control2(x,t) - u[4])*cos(x[3]) + (control1(x,t) -u[3])*sin(x[3]), # x[3] is the heading angle of the robot
+-1/ΔT*x[4] + 1/ΔT*x[1] + 1/ΔT * L*cos(x[3])  + u[3], # x[4] is the x position of human, teacher
+-1/ΔT*x[5] + 1/ΔT*x[2] + 1/ΔT * L*sin(x[3])  + u[4], # x[5] is the y position of human
 0, # x[6] is the ground truth state 
 belief_mean_update(x,u,t),
 belief_variance_update(x,u,t)
@@ -178,11 +194,10 @@ belief_variance_update(x,u,t)
 );
 dynamics2 = player_dynamics2();
 costs2 = (
-    FunctionPlayerCost((g, x, u, t) -> ( (x[1])^2 + (x[2])^2 +  10*(x[3] - x[7])^2 + α1*(u[1])^2 + (u[2])^2)), #+ σ1*(
+    FunctionPlayerCost((g, x, u, t) -> ( (x[1])^2 + (x[2])^2 +  robot_care*(x[3] - x[7])^2 + σ1*(u[1])^2 + (u[2])^2)), #+ σ1*(
         # (u_list[Int(floor(t/ΔT))+1][1] - π1_P_list[Int(floor(t/ΔT))+1][1,[1,2,3,6]]'*[x-x_list[Int(floor(t/ΔT))+1]][1][[1,2,3,7]]-π1_α_list[Int(floor(t/ΔT))+1][1])^2 + 
         # (u_list[Int(floor(t/ΔT))+1][2] - π1_P_list[Int(floor(t/ΔT))+1][2,[1,2,3,6]]'*[x-x_list[Int(floor(t/ΔT))+1]][1][[1,2,3,7]]-π1_α_list[Int(floor(t/ΔT))+1][2])^2) )),  # robot cost
-    FunctionPlayerCost((g, x, u, t) -> ( 0*10*(x[3] - x[6])^2 + 10*(x[end-1] - x[end-2])^2 + σ2*((u[3])^2 + (u[4])^2) )) # human cost
-    # costs[2]
+    FunctionPlayerCost((g, x, u, t) -> ( task_weight*(human_care*(x[3] - x[6])^2+ σ2*((u[3] - 0*control1(x,t))^2 + (u[4]-0*control2(x,t))^2)) + intent_weight*(x[end-1] - x[end-2])^2  )) # human cost
 ); 
 g2 = GeneralGame(game_horizon, player_inputs, dynamics2, costs2);
 solver2 = iLQSolver(g2, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
@@ -209,11 +224,11 @@ x21_FB, y21_FB = [x2.x[i][1] for i in 1:game_horizon], [x2.x[i][2] for i in 1:ga
 x22_FB, y22_FB = [x2.x[i][4] for i in 1:game_horizon], [x2.x[i][5] for i in 1:game_horizon];
 plot(0:game_horizon-1, active_belief_list, ribbon=active_var_list, xlabel="time", ylabel="mean of belief target lane",label="")
 hline!([θ],label="ground truth")
-savefig(plot_path*"final_hri_belief.png")
+savefig(plot_path*"final_hri_belief_no_teaching.png")
 
 plot(0:game_horizon-1, [x2_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="")
 hline!([θ],label="target")
-savefig(plot_path*"final_hri_theta.png")
+savefig(plot_path*"final_hri_theta_no_teaching.png")
 
 scatter(x21_FB, y21_FB,color=:black,markeralpha=marker_alpha_list,label="robot")
 scatter!(x22_FB, y22_FB,color=:red,markeralpha=marker_alpha_list,label="human")
@@ -225,7 +240,7 @@ for t in 1:game_horizon
     end
     plot!([x21_FB[t], x22_FB[t]], [y21_FB[t], y22_FB[t]], linealpha = marker_alpha_list[t], color=:orange, label=plot_label)
 end
-savefig(plot_path*"final_hri_traj.png")
+savefig(plot_path*"final_hri_traj_no_teaching.png")
 
 
 
@@ -256,7 +271,7 @@ end
 # player 1 is robot and player 2 is human. Human knows the true θ, but robot doesn't know the true θ
 # robot uses human's action to infer what's the true θ
 
-x01 = vcat(initial_state, SVector(θ, initial_belief, 1.0))
+x01 = vcat(initial_state, SVector(θ, initial_belief, initial_variance))
 # STEP 0:
 # dynamics in the mind of the second player: iLQGames, substituting player 1's control for player 2's belief update!
 struct player_dynamics3 <: ControlSystem{ΔT, nx, nu } end
@@ -281,9 +296,9 @@ dx(cs::player_dynamics3, x, u, t) = SVector(
 dynamics3 = player_dynamics3();
 
 costs3 = (
-    FunctionPlayerCost((g, x, u, t) -> ( (x[1])^2 + (x[2])^2 +  10*(x[3] - x[7])^2 + σ1*(u[1]^2 + u[2]^2) )),  # robot cost
+    FunctionPlayerCost((g, x, u, t) -> ( (x[1])^2 + (x[2])^2 +  robot_care*(x[3] - x[7])^2 + σ1*(u[1]^2 + u[2]^2) )),  # robot cost
     FunctionPlayerCost((g, x, u, t) -> ( 
-        10*(x[3] - x[6])^2 + (u[3])^2 + (u[4])^2
+        human_care*(x[3] - x[6])^2 + (u[3])^2 + (u[4])^2
         # σ2*(((u_true_list[Int(floor(t/ΔT))+1][3] - π_true_P_list[Int(floor(t/ΔT))+1][3,:]'*(x-x_true_list[Int(floor(t/ΔT))+1])-π_true_α_list[Int(floor(t/ΔT))+1][3])-u[1])^2 + ((u_true_list[Int(floor(t/ΔT))+1][4] - π_true_P_list[Int(floor(t/ΔT))+1][4,:]'*(x-x_true_list[Int(floor(t/ΔT))+1])-π_true_α_list[Int(floor(t/ΔT))+1][4])-u[2])^2) 
         )) # human cost
 );
@@ -330,30 +345,30 @@ for t in 1:game_horizon
     end
     plot!([x11_FB[t], x12_FB[t]], [y11_FB[t], y12_FB[t]], linealpha = marker_alpha_list[t], color=:orange, label=plot_label)
 end
-savefig(plot_path*"final_hri_traj_baseline.png")
+savefig(plot_path*"final_hri_traj_baseline_no_teaching.png")
 
 plot(0:game_horizon-1, [x3_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="")
 hline!([θ],label="target")
-savefig(plot_path*"final_hri_angle_baseline.png")
+savefig(plot_path*"final_hri_angle_baseline_no_teaching.png")
 
 
 plot(0:game_horizon-1, passive_belief_list, ribbon=passive_var_list, xlabel="time", ylabel="mean of belief target lane",label="")
 hline!([θ],label="ground truth")
-savefig(plot_path*"final_hri_belief_baseline.png")
+savefig(plot_path*"final_hri_belief_baseline_no_teaching.png")
 
 
 plot(0:game_horizon-1, [x3_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="passive teaching",legend=:bottomright,color=passive_color, linewidth=4 )
 plot!(0:game_horizon-1, [x2_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="active teaching", color=active_color, linewidth=4)
 plot!(0:game_horizon-1, [x_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="complete information", color=complete_color, linewidth=4)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_hri_angle_comparison.png")
+savefig(plot_path*"final_hri_angle_comparison_no_teaching.png")
 
 
 plot(0:game_horizon-1, passive_belief_list, ribbon=passive_var_list, xlabel="time", ylabel="mean of the belief",label="passive teaching",legend=:bottomright, color=passive_color, linewidth=4)
 plot!(0:game_horizon-1, active_belief_list, ribbon=active_var_list, xlabel="time", ylabel="mean of the belief",label="active teaching", color=active_color, linewidth=4)
 # hline!([θ],label="ground truth",color=:black)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_hri_belief_comparison.png")
+savefig(plot_path*"final_hri_belief_comparison_no_teaching.png")
 
 
 # Arxiv version:
@@ -390,33 +405,6 @@ savefig(plot_path*"final_hri_belief_comparison.png")
 
 
 
-# evaluate the task costs:
-complete_costs_player_1 = sum([costs[1](g, x_true.x[t], x_true.u[t], t*ΔT)[1] for t in 1:game_horizon])
-complete_costs_player_2 = sum([costs[2](g, x_true.x[t], x_true.u[t], t*ΔT)[1] for t in 1:game_horizon])
-
-function passive_control(x,t)
-    return [control1(x,t); control2(x,t); control3(x,t); control4(x,t)]
-end
-function active_control(x,u,t)
-    return [control1(x,t); control2(x,t); control3(x,t)+u[3]; control4(x,t)+u[4]]
-end
-passive_costs_player_1 = sum([costs[1](g3, x3.x[t], passive_control(x3.x[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon])
-passive_costs_player_2 = sum([costs[2](g3, x3.x[t], passive_control(x3.x[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon])
-
-active_costs_player_1 = sum([costs[1](g2, x2.x[t], active_control(x2.x[t],x2.u[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon])
-active_costs_player_2 = sum([costs[2](g2, x2.x[t], active_control(x2.x[t],x2.u[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon])
-
-
-
-
-player1_c = [complete_costs_player_1, active_costs_player_1, passive_costs_player_1]
-player2_c = [complete_costs_player_2, active_costs_player_2, passive_costs_player_2]
-
-
-
-
-
-
 function passive_control(x,t)
     return [control1(x,t); control2(x,t); control3(x,t); control4(x,t)]
 end
@@ -426,8 +414,7 @@ end
 
 
 # evaluate the task costs:
-complete_costs_player_1 = sum(list_complete_costs_player_1)
-complete_costs_player_2 = sum(list_complete_costs_player_2)
+
 
 list_complete_costs_player_1 = [costs[1](g, x_true.x[t], x_true.u[t], t*ΔT)[1] for t in 1:game_horizon]
 list_complete_costs_player_2 = [costs[2](g, x_true.x[t], x_true.u[t], t*ΔT)[1] for t in 1:game_horizon]
@@ -436,7 +423,8 @@ list_passive_costs_player_2 = [costs[2](g3, x3.x[t], passive_control(x3.x[t],t*�
 list_active_costs_player_1 = [costs[1](g2, x2.x[t], active_control(x2.x[t],x2.u[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon]
 list_active_costs_player_2 = [costs[2](g2, x2.x[t], active_control(x2.x[t],x2.u[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon]
 
-
+complete_costs_player_1 = sum(list_complete_costs_player_1)
+complete_costs_player_2 = sum(list_complete_costs_player_2)
 passive_costs_player_1 = sum(list_passive_costs_player_1)
 passive_costs_player_2 = sum(list_passive_costs_player_2)
 
@@ -452,27 +440,44 @@ player2_c = [complete_costs_player_2, active_costs_player_2, passive_costs_playe
 
 
 
+line_width = 2
 
 
 
+
+# the below is for the paper:
 
 # plot the cost of each player versus time:
-plot(0:game_horizon-1, list_active_costs_player_2,linewidth = 4,color=active_color, xlabel="time",label="active teaching",legend=:topright)
-plot!(0:game_horizon-1, list_passive_costs_player_2,linewidth = 4, color = passive_color, xlabel="time", ylabel="cost",label="passive teaching")
-plot!(0:game_horizon-1, list_complete_costs_player_2,linewidth = 4, color = complete_color, xlabel="time", ylabel="cost",label="complete information")
-plot!(size = (400,300))
-savefig(plot_path*"hri_costs_teacher_no_teaching.png")
+plot(0:game_horizon-1, list_active_costs_player_2,linewidth = line_width,color=active_color, xlabel="time",label="",legend=:topright)
+plot!(0:game_horizon-1, list_passive_costs_player_2,linewidth = line_width, color = passive_color, xlabel="time", ylabel="cost",label="")
+plot!(0:game_horizon-1, list_complete_costs_player_2,linewidth = line_width, color = complete_color, xlabel="time", ylabel="cost",label="")
+plot!(size = (400,200), grid = false)
+# savefig(plot_path*"hri_costs_teacher_no_teaching_1_0.pdf")
+savefig(plot_path*"hri_costs_teacher_$θ.pdf")
 
 
 
 
 # plot the belief of uncertain agent versus time:
-plot(0:game_horizon-1, active_belief_list, ribbon=active_var_list, xlabel="time", ylabel="belief",label="active teaching", color=active_color, linewidth=4)
-plot!(0:game_horizon-1, passive_belief_list, ribbon=passive_var_list, xlabel="time", ylabel="belief",label="passive teaching",legend=:topright, color=passive_color, linewidth=4)
-hline!([θ],label="ground truth",color=complete_color, linewidth=4)
-plot!(size = (400,300))
-savefig(plot_path*"hri_belief_teacher_no_teaching.png")
+plot(0:game_horizon-1, active_belief_list, ribbon=active_var_list, xlabel="time", ylabel="belief",label="", color=active_color, linewidth=line_width)
+plot!(0:game_horizon-1, passive_belief_list, ribbon=passive_var_list, xlabel="time", ylabel="belief",label="",legend=:bottomright, color=passive_color, linewidth=line_width)
+plot!([0,game_horizon-1],[θ, θ],label="",color=complete_color, linewidth=line_width)
+plot!(size = (400,200), grid = false)
+# savefig(plot_path*"hri_belief_teacher_no_teaching_1_0.pdf")
+savefig(plot_path*"hri_belief_teacher_$θ.pdf")
 
+
+
+
+
+# plot the theta of uncertain agent versus time:
+plot(0:game_horizon-1, [x2_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="angle",label="active", color=active_color, linewidth=line_width) # active teaching
+plot!(0:game_horizon-1, [x3_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="angle",label="passive",legend=:bottomright, color=passive_color, linewidth=line_width) # passive teaching
+plot!(0:game_horizon-1, [x_list[t][3] for t in 1:game_horizon], xlabel="time", ylabel="angle",label="oracal",legend=:bottomright, color=complete_color, linewidth=line_width) # complete information
+plot!([0,game_horizon-1],[θ,θ],label="θ*",color=:black, linewidth=line_width) # θ*
+plot!(size = (400,200), legend=:topright, grid = false)
+# savefig(plot_path*"hri_theta_teacher_no_teaching_1_0.pdf")
+savefig(plot_path*"hri_theta_teacher_$θ.pdf")
 
 
 

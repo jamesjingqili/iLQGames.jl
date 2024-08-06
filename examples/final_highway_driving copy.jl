@@ -26,8 +26,8 @@ nx, nu, ΔT, game_horizon = 12+1+2*2, 6, 0.1, 40
 # # # Use the array as a marker in the scatter function
 # scatter([1, 2, 3], [4, 5, 6], marker_z = teacher_marker)
 
-urgentness = 20;
-guidence_urgentness = 15;
+
+
 marker_alpha_list = LinRange(0.3, 1.0, game_horizon)
 time_list = ΔT:ΔT:game_horizon*ΔT
 θ = 0.3; # NOTE!!! change to 0.3 for the paper trajectory, but 0.5 for the regret!!!
@@ -63,9 +63,9 @@ u[6],
 0   # variance player 3
 )
 dynamics = ThreeUnicycles()
-costs = (FunctionPlayerCost((g, x, u, t) -> (guidence_urgentness*(x[5]-x[13])^2 + guidence_urgentness*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), 
-        FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
-        FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
+costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), 
+        FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
+        FunctionPlayerCost((g, x, u, t) -> (  4*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
         ) 
 
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
@@ -191,17 +191,11 @@ player3_belief_mean_update(x,u,t),
 player3_belief_variance_update(x,u,t),
 )
 dynamics2 = ThreeUnicycles2();
-# 1,2,3,4
-# 5,6,7,8
-# 9,10,11,12
-# ground truth 13
-# b2: 14, 15
-# b3: 16, 17
 costs2 = (
-    FunctionPlayerCost((g, x, u, t) -> (0*(x[14]-x[13])^2 + 0*(x[16]-x[13])^2 + 
-    guidence_urgentness*(x[5]-x[13])^2 + guidence_urgentness*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # teaching cost!
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
+    FunctionPlayerCost((g, x, u, t) -> (5*(x[14]-x[13])^2 + 5*(x[16]-x[13])^2 + 
+    10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # teaching cost!
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
 ) 
 g2 = GeneralGame(game_horizon, player_inputs, dynamics2, costs2);
 solver2 = iLQSolver(g2, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
@@ -314,8 +308,8 @@ dynamics3 = ThreeUnicycles3();
 costs3 = (
     FunctionPlayerCost((g, x, u, t) -> (20*(x[14]-x[13])^2 + 20*(x[16]-x[13])^2 + 
         10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )),
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
 ) 
 g3 = GeneralGame(game_horizon, player_inputs, dynamics3, costs3);
 solver3 = iLQSolver(g3, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")

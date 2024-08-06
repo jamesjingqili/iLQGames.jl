@@ -26,8 +26,8 @@ nx, nu, ΔT, game_horizon = 12+1+2*2, 6, 0.1, 40
 # # # Use the array as a marker in the scatter function
 # scatter([1, 2, 3], [4, 5, 6], marker_z = teacher_marker)
 
-urgentness = 20;
-guidence_urgentness = 15;
+
+
 marker_alpha_list = LinRange(0.3, 1.0, game_horizon)
 time_list = ΔT:ΔT:game_horizon*ΔT
 θ = 0.3; # NOTE!!! change to 0.3 for the paper trajectory, but 0.5 for the regret!!!
@@ -55,7 +55,7 @@ u[4],
 x[12]cos(x[11]), 
 x[12]sin(x[11]), 
 u[5], 
-u[6],
+u[6], 
 0,  # parameter of player 1, invisible to player 2
 0,  # mean of player 2
 0,  # variance player 2
@@ -63,9 +63,9 @@ u[6],
 0   # variance player 3
 )
 dynamics = ThreeUnicycles()
-costs = (FunctionPlayerCost((g, x, u, t) -> (guidence_urgentness*(x[5]-x[13])^2 + guidence_urgentness*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), 
-        FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
-        FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
+costs = (FunctionPlayerCost((g, x, u, t) -> (10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), 
+        FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
+        FunctionPlayerCost((g, x, u, t) -> (  4*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
         ) 
 
 player_inputs = (SVector(1,2), SVector(3,4), SVector(5,6))
@@ -97,7 +97,7 @@ xlims!(-0.3, 1.3)
 vline!([θ],label="target",linestyle=:dash,color=:black)
 vline!([-0.2], label="lane boundary", color=:black, linewidth = 4)
 vline!([1.2], label="", color=:black, linewidth = 4)
-savefig(plot_path*"final_highway_traj_complete.pdf")
+savefig(plot_path*"final_highway_traj_complete_no_teaching.pdf")
 
 
 
@@ -150,7 +150,7 @@ end
 function player2_belief_mean_update(x,u,τ)
     t= Int(floor(τ/ΔT))+1
     return - 1/ΔT* x[15]*π_P_list[t][1:2,13]'*inv(I(2)+π_P_list[t][1:2,13]*x[15]*π_P_list[t][1:2,13]') * ( 
-        [control1(x,τ)+u[1] - player2_imagined_control(x,τ,1);  control2(x,τ)+u[2] - player2_imagined_control(x,τ,2)] )
+        [u[1] - player2_imagined_control(x,τ,1);  u[2] - player2_imagined_control(x,τ,2)] )
 end
 function player2_belief_variance_update(x,u,τ)
     t = Int(floor(τ/ΔT))+1
@@ -159,7 +159,7 @@ end
 function player3_belief_mean_update(x,u,τ)
     t= Int(floor(τ/ΔT))+1
     return - 1/ΔT* x[17]*π_P_list[t][1:2,13]'*inv(I(2)+π_P_list[t][1:2,13]*x[17]*π_P_list[t][1:2,13]') * ( 
-        [control1(x,τ)+u[1] - player3_imagined_control(x,τ,1);  control2(x,τ)+u[2] - player3_imagined_control(x,τ,2)] )
+        [u[1] - player3_imagined_control(x,τ,1);  u[2] - player3_imagined_control(x,τ,2)] )
 end
 function player3_belief_variance_update(x,u,τ)
     t = Int(floor(τ/ΔT))+1
@@ -174,8 +174,8 @@ struct ThreeUnicycles2 <: ControlSystem{ΔT, nx, nu } end
 dx(cs::ThreeUnicycles2, x, u, t) = SVector(
 x[4]cos(x[3]), 
 x[4]sin(x[3]), 
-control1(x,t) + u[1], 
-control2(x,t) + u[2], 
+u[1], 
+u[2], 
 x[8]cos(x[7]), 
 x[8]sin(x[7]), 
 control3(x,t), 
@@ -191,17 +191,11 @@ player3_belief_mean_update(x,u,t),
 player3_belief_variance_update(x,u,t),
 )
 dynamics2 = ThreeUnicycles2();
-# 1,2,3,4
-# 5,6,7,8
-# 9,10,11,12
-# ground truth 13
-# b2: 14, 15
-# b3: 16, 17
-costs2 = (
-    FunctionPlayerCost((g, x, u, t) -> (0*(x[14]-x[13])^2 + 0*(x[16]-x[13])^2 + 
-    guidence_urgentness*(x[5]-x[13])^2 + guidence_urgentness*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # teaching cost!
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
+costs2 = (FunctionPlayerCost((g, x, u, t) -> (2*(x[14]-x[13])^2 + 2*(x[16]-x[13])^2 + 10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )),
+    # FunctionPlayerCost((g, x, u, t) -> (5*(x[14]-x[13])^2 + 5*(x[16]-x[13])^2 + 
+    # 10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )), # teaching cost!
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
 ) 
 g2 = GeneralGame(game_horizon, player_inputs, dynamics2, costs2);
 solver2 = iLQSolver(g2, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
@@ -242,7 +236,7 @@ vline!([θ],label="",linestyle=:dash, color=:black)
 xlims!(-0.3, 1.3)
 vline!([-0.2], label="", color=:black, linewidth = 4)
 vline!([1.2], label="", color=:black, linewidth = 4)
-savefig(plot_path*"final_highway_traj.pdf")
+savefig(plot_path*"final_highway_traj_no_teaching_no_teaching.pdf")
 
 
 
@@ -314,8 +308,8 @@ dynamics3 = ThreeUnicycles3();
 costs3 = (
     FunctionPlayerCost((g, x, u, t) -> (20*(x[14]-x[13])^2 + 20*(x[16]-x[13])^2 + 
         10*(x[5]-x[13])^2 + 10*(x[9]-x[13])^2  + (x[3]-pi/2)^2 + u[1]^2 + u[2]^2 )),
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
-    FunctionPlayerCost((g, x, u, t) -> (  urgentness*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[5] - x[1])^2  + (x[7]-pi/2)^2 + u[3]^2 + u[4]^2 )),
+    FunctionPlayerCost((g, x, u, t) -> (  4*(x[9] - x[5])^2  + (x[11]-pi/2)^2 + u[5]^2 + u[6]^2 ))
 ) 
 g3 = GeneralGame(game_horizon, player_inputs, dynamics3, costs3);
 solver3 = iLQSolver(g3, max_scale_backtrack=5, max_n_iter=10, max_elwise_diff_step=Inf, equilibrium_type="FBNE")
@@ -357,7 +351,7 @@ vline!([θ],label="", linestyle=:dash,color=:black)
 vline!([-0.2], label="", color=:black, linewidth = 4)
 vline!([1.2], label="", color=:black, linewidth = 4)
 xlims!(-0.3, 1.3)
-savefig(plot_path*"final_highway_traj_baseline.pdf")
+savefig(plot_path*"final_highway_traj_baseline_no_teaching.pdf")
 
 
 # plot(0:game_horizon-1, [x3_list[t][14] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="")
@@ -375,24 +369,24 @@ plot(0:game_horizon-1, [x3_list[t][5] for t in 1:game_horizon], xlabel="time", y
 plot!(0:game_horizon-1, [x2_list[t][5] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="active teaching, student 1", color = active_color)
 plot!(0:game_horizon-1, [x_list[t][5] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="complete information, student 1", color = complete_color)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_highway_x_comparison_student1.png")
+savefig(plot_path*"final_highway_x_comparison_student1_no_teaching.png")
 
 plot(0:game_horizon-1, [x3_list[t][9] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="passive teaching, student 2",legend=:topright, color=passive_color)
 plot!(0:game_horizon-1, [x2_list[t][9] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="active teaching, student 2", color = active_color)
 plot!(0:game_horizon-1, [x_list[t][9] for t in 1:game_horizon], xlabel="time", ylabel="theta",label="complete information, student 2", color = complete_color)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_highway_x_comparison_student2.png")
+savefig(plot_path*"final_highway_x_comparison_student2_no_teaching.png")
 
 
 plot(0:game_horizon-1, player2_passive_belief_list, ribbon=player2_passive_var_list, xlabel="time", ylabel="mean of the belief",label="student 1, passive teaching",legend=:topright, color=passive_color, linewidth=2)
 plot!(0:game_horizon-1, player2_active_belief_list, ribbon=player2_active_var_list, xlabel="time", ylabel="mean of the belief",label="student 1, active teaching", color = active_color, linewidth=2)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_hri_belief_comparison_student1.pdf")
+savefig(plot_path*"final_hri_belief_comparison_student1_no_teaching.pdf")
 
 plot(0:game_horizon-1, player3_passive_belief_list, ribbon=player3_passive_var_list, xlabel="time", ylabel="mean of the belief",label="student 2, passive teaching",legend=:topright, color=passive_color, linewidth=2)
 plot!(0:game_horizon-1, player3_active_belief_list, ribbon=player3_active_var_list, xlabel="time", ylabel="mean of the belief",label="student 2, active teaching", color = active_color, linewidth=2)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_hri_belief_comparison_student2.pdf")
+savefig(plot_path*"final_hri_belief_comparison_student2_no_teaching.pdf")
 
 
 plot(0:game_horizon-1, player3_passive_belief_list, ribbon=player3_passive_var_list,linestyle=:dash, 
@@ -404,7 +398,7 @@ plot!(0:game_horizon-1, player2_passive_belief_list, ribbon=player2_passive_var_
 plot!(0:game_horizon-1, player2_active_belief_list, ribbon=player2_active_var_list, 
     xlabel="time", ylabel="mean of the belief",label="student 1, active teaching", color = active_color, linewidth=2)
 plot!([0,game_horizon-1],[θ,θ],label="target",color=:black)
-savefig(plot_path*"final_hri_belief_comparison_students.png")
+savefig(plot_path*"final_hri_belief_comparison_students_no_teaching.png")
 
 
 
@@ -420,7 +414,7 @@ function passive_control(x,t)
     return [control1(x,t); control2(x,t); control3(x,t); control4(x,t); control5(x,t); control6(x,t)]
 end
 function active_control(x,u,t)
-    return [control1(x,t)+u[1]; control2(x,t)+u[2]; control3(x,t); control4(x,t); control5(x,t); control6(x,t)]
+    return [u[1]; u[2]; control3(x,t); control4(x,t); control5(x,t); control6(x,t)]
 end
 passive_costs_player_1 = sum([costs[1](g3, x3.x[t], passive_control(x3.x[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon])
 passive_costs_player_2 = sum([costs[2](g3, x3.x[t], passive_control(x3.x[t],t*ΔT), t*ΔT)[1] for t in 1:game_horizon])
